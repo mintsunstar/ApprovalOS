@@ -28,29 +28,31 @@ export function Landing() {
             'radial-gradient(ellipse 90% 55% at 50% -15%, #bfdbfe 0%, transparent 55%), linear-gradient(180deg, #eff6ff 0%, #f3f4f6 100%)',
         }}
       />
-      <header className="relative z-10 mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
+      <header className="relative z-10 mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-6 sm:py-5">
         <div className="flex items-center gap-2.5">
           <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent text-sm font-bold text-white">
             A
           </span>
-          <span className="text-xl font-bold tracking-tight text-ink">ApprovalOS</span>
+          <span className="text-lg font-bold tracking-tight text-ink sm:text-xl">ApprovalOS</span>
         </div>
-        <div className="flex gap-2">
-          <Button variant="ghost" onClick={enterDev}>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="ghost" size="sm" onClick={enterDev}>
             개발자 입장
           </Button>
           <Link to="/login">
-            <Button variant="ghost">로그인</Button>
+            <Button variant="ghost" size="sm">
+              로그인
+            </Button>
           </Link>
           <Link to="/signup">
-            <Button>시작하기</Button>
+            <Button size="sm">시작하기</Button>
           </Link>
         </div>
       </header>
 
-      <section className="relative z-10 mx-auto max-w-4xl px-6 pb-20 pt-16 text-center">
+      <section className="relative z-10 mx-auto max-w-4xl px-4 pb-16 pt-10 text-center sm:px-6 sm:pb-20 sm:pt-16">
         <p className="mb-4 text-sm font-semibold text-accent">Design Review · Approval Platform</p>
-        <h1 className="text-5xl font-bold leading-tight tracking-tight text-ink md:text-6xl">
+        <h1 className="text-4xl font-bold leading-tight tracking-tight text-ink sm:text-5xl md:text-6xl">
           ApprovalOS
         </h1>
         <p className="mx-auto mt-6 max-w-xl text-lg text-ink-muted">
@@ -71,7 +73,7 @@ export function Landing() {
         </p>
       </section>
 
-      <section className="relative z-10 mx-auto max-w-5xl px-6 py-14">
+      <section className="relative z-10 mx-auto max-w-5xl px-4 py-10 sm:px-6 sm:py-14">
         <h2 className="mb-8 text-center text-2xl font-bold">핵심 기능</h2>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {[
@@ -88,7 +90,7 @@ export function Landing() {
         </div>
       </section>
 
-      <section className="relative z-10 mx-auto max-w-3xl px-6 py-10 text-center">
+      <section className="relative z-10 mx-auto max-w-3xl px-4 py-8 sm:px-6 sm:py-10 text-center">
         <h2 className="mb-6 text-2xl font-bold">워크플로우</h2>
         <div className="flex flex-wrap items-center justify-center gap-2 text-sm font-semibold">
           {['업로드', '의견', '투표', '승인', '보고서'].map((s, i) => (
@@ -100,7 +102,7 @@ export function Landing() {
         </div>
       </section>
 
-      <section className="relative z-10 mx-auto max-w-5xl px-6 py-14">
+      <section className="relative z-10 mx-auto max-w-5xl px-4 py-10 sm:px-6 sm:py-14">
         <h2 className="mb-8 text-center text-2xl font-bold">요금제</h2>
         <div className="grid gap-4 md:grid-cols-3">
           {[

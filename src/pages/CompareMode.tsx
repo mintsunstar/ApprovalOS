@@ -55,6 +55,11 @@ export function CompareMode() {
     }
   }, [leftId, rightId, leftVer, rightVer])
 
+  const updateSplit = (clientX: number, rect: DOMRect) => {
+    const pct = ((clientX - rect.left) / rect.width) * 100
+    setSplit(Math.max(10, Math.min(90, pct)))
+  }
+
   if (items.length < 1) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -64,25 +69,23 @@ export function CompareMode() {
   }
 
   return (
-    <div className="flex h-screen flex-col bg-[#1a1d21] text-white">
-      <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
-        <div className="flex items-center gap-3">
+    <div className="flex h-[100dvh] flex-col bg-[#1a1d21] text-white">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 px-3 py-3 sm:px-4">
+        <div className="flex min-w-0 items-center gap-2 sm:gap-3">
           <Button size="sm" variant="secondary" onClick={() => navigate(-1)}>
             ← 나가기
           </Button>
-          <h1 className="font-semibold">비교 모드</h1>
+          <h1 className="truncate text-sm font-semibold sm:text-base">비교 모드</h1>
         </div>
-        <div className="flex gap-2">
-          <Button size="sm" variant={showPins ? 'primary' : 'secondary'} onClick={() => setShowPins(!showPins)}>
-            핀 표시
-          </Button>
-        </div>
+        <Button size="sm" variant={showPins ? 'primary' : 'secondary'} onClick={() => setShowPins(!showPins)}>
+          핀 표시
+        </Button>
       </div>
 
-      <div className="grid grid-cols-2 gap-2 border-b border-white/10 px-4 py-2 text-sm">
-        <div className="flex gap-2">
+      <div className="grid grid-cols-1 gap-3 border-b border-white/10 px-3 py-3 text-sm sm:px-4 md:grid-cols-2 md:gap-2 md:py-2">
+        <div className="flex min-w-0 gap-2">
           <select
-            className="rounded border border-white/20 bg-transparent px-2 py-1"
+            className="min-w-0 flex-1 rounded border border-white/20 bg-transparent px-2 py-2 text-sm sm:py-1"
             value={leftId}
             onChange={(e) => {
               setLeftId(e.target.value)
@@ -96,7 +99,7 @@ export function CompareMode() {
             ))}
           </select>
           <select
-            className="rounded border border-white/20 bg-transparent px-2 py-1"
+            className="w-20 shrink-0 rounded border border-white/20 bg-transparent px-2 py-2 text-sm sm:py-1"
             value={leftVer?.id ?? ''}
             onChange={(e) => setLeftVerId(e.target.value)}
           >
@@ -107,9 +110,9 @@ export function CompareMode() {
             ))}
           </select>
         </div>
-        <div className="flex gap-2">
+        <div className="flex min-w-0 gap-2">
           <select
-            className="rounded border border-white/20 bg-transparent px-2 py-1"
+            className="min-w-0 flex-1 rounded border border-white/20 bg-transparent px-2 py-2 text-sm sm:py-1"
             value={rightId}
             onChange={(e) => {
               setRightId(e.target.value)
@@ -123,7 +126,7 @@ export function CompareMode() {
             ))}
           </select>
           <select
-            className="rounded border border-white/20 bg-transparent px-2 py-1"
+            className="w-20 shrink-0 rounded border border-white/20 bg-transparent px-2 py-2 text-sm sm:py-1"
             value={rightVer?.id ?? ''}
             onChange={(e) => setRightVerId(e.target.value)}
           >
@@ -137,15 +140,20 @@ export function CompareMode() {
       </div>
 
       <div
-        className="relative flex-1 overflow-hidden"
+        className="relative flex-1 touch-none overflow-hidden"
         onMouseMove={(e) => {
           if (!dragging[0]) return
-          const rect = e.currentTarget.getBoundingClientRect()
-          const pct = ((e.clientX - rect.left) / rect.width) * 100
-          setSplit(Math.max(10, Math.min(90, pct)))
+          updateSplit(e.clientX, e.currentTarget.getBoundingClientRect())
         }}
         onMouseUp={() => dragging[1](false)}
         onMouseLeave={() => dragging[1](false)}
+        onTouchMove={(e) => {
+          if (!dragging[0]) return
+          const touch = e.touches[0]
+          if (!touch) return
+          updateSplit(touch.clientX, e.currentTarget.getBoundingClientRect())
+        }}
+        onTouchEnd={() => dragging[1](false)}
       >
         <div
           className="absolute inset-0"
@@ -160,15 +168,16 @@ export function CompareMode() {
           <PanelImage url={rightVer?.file_url} pins={showPins ? rightPins : []} />
         </div>
         <div
-          className="absolute bottom-0 top-0 z-20 w-1 cursor-ew-resize bg-white"
+          className="absolute bottom-0 top-0 z-20 w-1 cursor-ew-resize bg-white touch-none"
           style={{ left: `${split}%`, transform: 'translateX(-50%)' }}
           onMouseDown={() => dragging[1](true)}
+          onTouchStart={() => dragging[1](true)}
         >
-          <div className="absolute left-1/2 top-1/2 h-8 w-8 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-accent" />
+          <div className="absolute left-1/2 top-1/2 h-10 w-10 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-accent sm:h-8 sm:w-8" />
         </div>
       </div>
 
-      <div className="flex justify-between border-t border-white/10 px-6 py-3 text-sm text-white/80">
+      <div className="flex flex-col gap-1 border-t border-white/10 px-4 py-3 text-xs text-white/80 sm:flex-row sm:justify-between sm:text-sm">
         <span>
           {leftItem?.title}: {leftItem?.vote_count ?? 0}표 ({leftItem?.vote_rate ?? 0}%) ★{leftItem?.avg_score ?? 0}
         </span>
@@ -182,12 +191,12 @@ export function CompareMode() {
 
 function PanelImage({ url, pins }: { url?: string; pins: PinComment[] }) {
   return (
-    <div className="flex h-full w-full items-center justify-center p-8">
+    <div className="flex h-full w-full items-center justify-center p-4 sm:p-8">
       <TransformWrapper>
         <TransformComponent>
           <div className="relative inline-block">
             {url ? (
-              <StoredImage fileRef={url} alt="" className="max-h-[70vh] max-w-full object-contain" />
+              <StoredImage fileRef={url} alt="" className="max-h-[50dvh] max-w-full object-contain sm:max-h-[70vh]" />
             ) : (
               <p className="text-white/50">이미지 없음</p>
             )}

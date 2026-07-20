@@ -61,7 +61,7 @@ export function ProjectSettings() {
     <div className="flex min-h-[calc(100vh-3.5rem)] flex-col">
       <ProjectHeader project={project} />
       <ProjectLNB project={project} isAdmin />
-      <div className="mx-auto w-full max-w-lg space-y-4 p-6">
+      <div className="mx-auto w-full max-w-lg space-y-4 p-4 sm:p-6">
         <div className="card space-y-4 p-5">
           <Input label={"프로젝트명"} value={title} onChange={(e) => setTitle(e.target.value)} />
           <Input

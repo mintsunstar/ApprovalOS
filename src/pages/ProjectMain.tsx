@@ -95,7 +95,7 @@ export function ProjectMain() {
       />
       <ProjectLNB project={project} isAdmin={isAdmin} />
       <div className="flex flex-1">
-        <div className="min-w-0 flex-1 p-6">
+        <div className="min-w-0 flex-1 p-4 sm:p-6">
           {/* Vote progress bar — mockup style */}
           <div className="card mb-6 flex flex-wrap items-center gap-6 p-4">
             <div className="min-w-[140px]">

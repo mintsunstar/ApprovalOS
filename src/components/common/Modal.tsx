@@ -13,19 +13,23 @@ interface ModalProps {
 export function Modal({ open, onClose, title, children, footer, wide }: ModalProps) {
   if (!open) return null
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-end justify-center p-0 sm:items-center sm:p-4">
       <div className="absolute inset-0 bg-ink/40" onClick={onClose} />
       <div
-        className={`relative z-10 max-h-[90vh] w-full overflow-auto rounded-xl bg-surface-raised shadow-xl ${wide ? 'max-w-2xl' : 'max-w-md'}`}
+        className={`relative z-10 max-h-[90dvh] w-full overflow-auto rounded-t-2xl bg-surface-raised shadow-xl sm:max-h-[90vh] sm:rounded-xl ${wide ? 'sm:max-w-2xl' : 'sm:max-w-md'}`}
       >
-        <div className="flex items-center justify-between border-b border-border px-5 py-4">
+        <div className="flex items-center justify-between border-b border-border px-4 py-4 sm:px-5">
           <h2 className="text-lg font-semibold">{title}</h2>
           <button onClick={onClose} className="text-ink-muted hover:text-ink text-xl leading-none">
             ×
           </button>
         </div>
-        <div className="px-5 py-4">{children}</div>
-        {footer && <div className="flex justify-end gap-2 border-t border-border px-5 py-4">{footer}</div>}
+        <div className="px-4 py-4 sm:px-5">{children}</div>
+        {footer && (
+          <div className="flex flex-col-reverse gap-2 border-t border-border px-4 py-4 sm:flex-row sm:justify-end sm:px-5">
+            {footer}
+          </div>
+        )}
       </div>
     </div>
   )

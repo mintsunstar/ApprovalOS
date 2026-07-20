@@ -44,7 +44,7 @@ export function ApprovalCenter() {
   const filtered = tab === 'pending' || tab === 'all' ? pending : []
 
   return (
-    <div className="px-6 py-8 lg:px-8">
+    <div className="px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
       <h1 className="mb-2 text-2xl font-bold">승인 센터</h1>
       <p className="mb-6 text-sm text-ink-muted">대기 중인 승인 요청을 확인하고 처리하세요</p>
 

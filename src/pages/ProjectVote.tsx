@@ -49,6 +49,18 @@ export function ProjectVote() {
     }
   }, [items, rankings.length])
 
+  const sensors = useSensors(useSensor(PointerSensor))
+
+  const onDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+    setRankings((list) => {
+      const oldIndex = list.indexOf(String(active.id))
+      const newIndex = list.indexOf(String(over.id))
+      return arrayMove(list, oldIndex, newIndex)
+    })
+  }
+
   if (!currentProject || !user) return null
   const project = currentProject
   const isClosed = project.status === 'closed'
@@ -60,18 +72,6 @@ export function ProjectVote() {
     if (voteType === 'rank') return 2
     if (voteType === 'score') return 2
     return 4
-  }
-
-  const sensors = useSensors(useSensor(PointerSensor))
-
-  const onDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event
-    if (!over || active.id === over.id) return
-    setRankings((list) => {
-      const oldIndex = list.indexOf(String(active.id))
-      const newIndex = list.indexOf(String(over.id))
-      return arrayMove(list, oldIndex, newIndex)
-    })
   }
 
   const submit = () => {
@@ -92,7 +92,7 @@ export function ProjectVote() {
         ranks = []
       } else {
         if (selected.length === 0) {
-          toast.error("시안을 선택해주세요")
+          toast.error("??? ??????")
           setLoading(false)
           return
         }
@@ -114,9 +114,9 @@ export function ProjectVote() {
       }
 
       setDone(true)
-      toast.success("투표가 완료되었습니다")
+      toast.success("??? ???????")
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "투표 실패")
+      toast.error(err instanceof Error ? err.message : "?? ??")
     } finally {
       setLoading(false)
     }
@@ -128,7 +128,7 @@ export function ProjectVote() {
         <ProjectHeader project={project} />
         <ProjectLNB project={project} isAdmin={isAdmin} />
         <div className="flex flex-1 items-center justify-center p-8">
-          <p className="text-lg text-ink-muted">{"투표가 마감되었습니다"}</p>
+          <p className="text-lg text-ink-muted">{"??? ???????"}</p>
         </div>
       </div>
     )
@@ -140,9 +140,9 @@ export function ProjectVote() {
         <ProjectHeader project={project} />
         <ProjectLNB project={project} isAdmin={isAdmin} />
         <div className="flex flex-1 flex-col items-center justify-center gap-4 p-8">
-          <h2 className="text-2xl font-bold">{"투표 완료!"}</h2>
-          <p className="text-ink-muted">{"소중한 의견 감사합니다"}</p>
-          <Button onClick={() => navigate(`/projects/${project.id}`)}>{"프로젝트로"}</Button>
+          <h2 className="text-2xl font-bold">{"?? ??!"}</h2>
+          <p className="text-ink-muted">{"??? ?? ?????"}</p>
+          <Button onClick={() => navigate(`/projects/${project.id}`)}>{"?????"}</Button>
         </div>
       </div>
     )
@@ -154,7 +154,7 @@ export function ProjectVote() {
     <div className="flex min-h-[calc(100vh-3.5rem)] flex-col">
       <ProjectHeader project={project} />
       <ProjectLNB project={project} isAdmin={isAdmin} />
-      <div className="mx-auto w-full max-w-2xl p-6">
+      <div className="mx-auto w-full max-w-2xl p-4 sm:p-6">
         <div className="mb-6 flex gap-2">
           {Array.from({ length: totalSteps }, (_, i) => i + 1).map((s) => (
             <div
@@ -167,7 +167,7 @@ export function ProjectVote() {
         {(voteType === 'single' || (voteType === 'combined' && step === 1)) && (
           <div>
             <h2 className="mb-4 text-lg font-bold">
-              {voteType === 'single' ? "선호하는 시안을 선택하세요" : "시안 선택"}
+              {voteType === 'single' ? "???? ??? ?????" : "?? ??"}
             </h2>
             <div className="grid gap-3 sm:grid-cols-2">
               {items.map((item) => (
@@ -210,7 +210,7 @@ export function ProjectVote() {
 
         {(voteType === 'rank' || (voteType === 'combined' && step === 2)) && (
           <div>
-            <h2 className="mb-4 text-lg font-bold">{"순위를 정해주세요"}</h2>
+            <h2 className="mb-4 text-lg font-bold">{"??? ?????"}</h2>
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
               <SortableContext
                 items={
@@ -264,7 +264,7 @@ export function ProjectVote() {
 
         {(voteType === 'score' || (voteType === 'combined' && step === 3)) && (
           <div>
-            <h2 className="mb-4 text-lg font-bold">{"평가 점수 (1~5)"}</h2>
+            <h2 className="mb-4 text-lg font-bold">{"?? ?? (1~5)"}</h2>
             <div className="space-y-4">
               {(voteType === 'combined' ? items.filter((i) => selected.includes(i.id)) : items).map(
                 (item) => (
@@ -306,19 +306,19 @@ export function ProjectVote() {
         {((voteType === 'combined' && step === 4) ||
           (voteType !== 'combined' && step === totalSteps)) && (
           <div>
-            <h2 className="mb-4 text-lg font-bold">{"추가 의견 (선택)"}</h2>
+            <h2 className="mb-4 text-lg font-bold">{"?? ?? (??)"}</h2>
             <Textarea
               value={comment}
               onChange={(e) => setComment(e.target.value)}
               rows={4}
-              placeholder={"자유롭게 의견을 남겨주세요"}
+              placeholder={"???? ??? ?????"}
             />
           </div>
         )}
 
         <div className="mt-8 flex justify-between">
           <Button variant="secondary" disabled={step === 1} onClick={() => setStep(step - 1)}>
-            {"이전"}
+            {"??"}
           </Button>
           {step < totalSteps ? (
             <Button
@@ -328,17 +328,17 @@ export function ProjectVote() {
                   step === 1 &&
                   selected.length === 0
                 ) {
-                  toast.error("시안을 선택해주세요")
+                  toast.error("??? ??????")
                   return
                 }
                 setStep(step + 1)
               }}
             >
-              {"다음"}
+              {"??"}
             </Button>
           ) : (
             <Button loading={loading} onClick={submit}>
-              {"제출"}
+              {"??"}
             </Button>
           )}
         </div>

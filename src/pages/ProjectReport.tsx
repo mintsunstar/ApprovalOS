@@ -93,7 +93,7 @@ export function ProjectReport() {
     <div className="flex min-h-[calc(100vh-3.5rem)] flex-col">
       <ProjectHeader project={project} />
       <ProjectLNB project={project} isAdmin={user.role === 'admin'} />
-      <div className="grid gap-6 p-6 lg:grid-cols-2">
+      <div className="grid gap-6 p-4 sm:p-6 lg:grid-cols-2">
         <div className="card p-5">
           <h2 className="mb-4 font-bold">{"포함 항목"}</h2>
           <div className="space-y-2">

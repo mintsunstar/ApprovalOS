@@ -111,17 +111,17 @@ export function ItemDetail() {
 
   return (
     <div className="flex min-h-[calc(100vh-3.5rem)] flex-col">
-      <div className="flex items-center justify-between border-b border-border bg-surface-raised px-4 py-3">
-        <div className="flex items-center gap-3">
-          <Link to={`/projects/${id}`} className="text-sm text-ink-muted hover:text-ink">
-            ← 목록으로
+      <div className="flex flex-col gap-3 border-b border-border bg-surface-raised px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-4">
+        <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+          <Link to={`/projects/${id}`} className="shrink-0 text-sm text-ink-muted hover:text-ink">
+            ← 목록
           </Link>
-          <h1 className="font-semibold">{item.title}</h1>
+          <h1 className="truncate font-semibold">{item.title}</h1>
           <Badge tone="info">v{viewVersion?.version_number ?? 1}</Badge>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Button size="sm" variant={showPins ? 'primary' : 'secondary'} onClick={() => setShowPins(!showPins)}>
-            핀 표시 {showPins ? 'ON' : 'OFF'}
+            핀 {showPins ? 'ON' : 'OFF'}
           </Button>
           <Button size="sm" variant="secondary" onClick={() => setHideResolved(!hideResolved)}>
             해결됨 {hideResolved ? '숨김' : '표시'}
@@ -129,14 +129,14 @@ export function ItemDetail() {
         </div>
       </div>
 
-      <div className="flex flex-1">
-        <div className="flex flex-1 flex-col">
+      <div className="flex flex-1 flex-col lg:flex-row">
+        <div className="flex min-w-0 flex-1 flex-col">
           <div className="relative flex-1 bg-[#1a1d21]" ref={imgRef}>
             <TransformWrapper>
               <TransformComponent wrapperClass="!w-full !h-full" contentClass="!w-full !h-full flex items-center justify-center">
-                <div className="relative inline-block max-h-[70vh] cursor-crosshair" onClick={handleImageClick}>
+                <div className="relative inline-block max-h-[55vh] cursor-crosshair sm:max-h-[70vh]" onClick={handleImageClick}>
                   {displayUrl && (
-                    <img src={displayUrl} alt={item.title} className="max-h-[70vh] max-w-full object-contain" />
+                    <img src={displayUrl} alt={item.title} className="max-h-[55vh] max-w-full object-contain sm:max-h-[70vh]" />
                   )}
                   {showPins &&
                     visiblePins.map((pin) => (
@@ -169,7 +169,7 @@ export function ItemDetail() {
             </TransformWrapper>
 
             {draftPin && (
-              <div className="absolute right-4 top-4 z-20 w-72 rounded-xl border border-border bg-surface-raised p-4 shadow-xl">
+              <div className="absolute inset-x-3 top-3 z-20 rounded-xl border border-border bg-surface-raised p-4 shadow-xl sm:inset-x-auto sm:right-4 sm:w-72">
                 <p className="mb-2 text-sm font-medium">핀 댓글 작성</p>
                 <Textarea value={pinText} onChange={(e) => setPinText(e.target.value)} rows={3} />
                 <div className="mt-2 flex justify-end gap-2">
@@ -184,7 +184,7 @@ export function ItemDetail() {
             )}
 
             {activePin && (
-              <div className="absolute right-4 top-4 z-20 w-72 rounded-xl border border-border bg-surface-raised p-4 shadow-xl">
+              <div className="absolute inset-x-3 top-3 z-20 rounded-xl border border-border bg-surface-raised p-4 shadow-xl sm:inset-x-auto sm:right-4 sm:w-72">
                 {(() => {
                   const pin = pins.find((p) => p.id === activePin)
                   if (!pin) return null
@@ -262,7 +262,7 @@ export function ItemDetail() {
           </div>
         </div>
 
-        <aside className="w-72 shrink-0 overflow-auto border-l border-border bg-surface-raised p-4">
+        <aside className="w-full shrink-0 overflow-auto border-t border-border bg-surface-raised p-4 lg:w-72 lg:border-l lg:border-t-0">
           <div className="mb-4 flex items-center justify-between">
             <h3 className="text-sm font-semibold">버전 히스토리</h3>
             {isAdmin && (

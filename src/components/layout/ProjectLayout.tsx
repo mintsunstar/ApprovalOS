@@ -20,15 +20,15 @@ const links = [
 export function ProjectLNB({ project, isAdmin }: ProjectLNBProps) {
   const base = `/projects/${project.id}`
   return (
-    <div className="border-b border-border bg-surface-raised px-6">
-      <nav className="-mb-px flex gap-1 overflow-x-auto">
+    <div className="border-b border-border bg-surface-raised px-4 sm:px-6">
+      <nav className="-mb-px flex gap-1 overflow-x-auto scrollbar-none [-webkit-overflow-scrolling:touch]">
         {links.map((link) => (
           <NavLink
             key={link.to}
             to={`${base}${link.to}`}
             end={link.end}
             className={({ isActive }) =>
-              `whitespace-nowrap border-b-2 px-4 py-3 text-sm font-medium transition ${
+              `whitespace-nowrap border-b-2 px-3 py-2.5 text-sm font-medium transition sm:px-4 sm:py-3 ${
                 isActive
                   ? 'border-accent text-accent'
                   : 'border-transparent text-ink-muted hover:border-border hover:text-ink'
@@ -47,7 +47,7 @@ export function ProjectLNB({ project, isAdmin }: ProjectLNBProps) {
           <NavLink
             to={`${base}/settings`}
             className={({ isActive }) =>
-              `whitespace-nowrap border-b-2 px-4 py-3 text-sm font-medium transition ${
+              `whitespace-nowrap border-b-2 px-3 py-2.5 text-sm font-medium transition sm:px-4 sm:py-3 ${
                 isActive
                   ? 'border-accent text-accent'
                   : 'border-transparent text-ink-muted hover:border-border hover:text-ink'
@@ -69,11 +69,11 @@ interface ProjectHeaderProps {
 
 export function ProjectHeader({ project, actions }: ProjectHeaderProps) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 bg-surface-raised px-6 py-5">
-      <div className="flex items-start gap-3">
+    <div className="flex flex-wrap items-start justify-between gap-3 bg-surface-raised px-4 py-4 sm:px-6 sm:py-5">
+      <div className="min-w-0 flex-1">
         <div>
-          <div className="mb-1 flex items-center gap-2">
-            <h1 className="text-xl font-bold text-ink">{project.title}</h1>
+          <div className="mb-1 flex flex-wrap items-center gap-2">
+            <h1 className="text-lg font-bold text-ink sm:text-xl">{project.title}</h1>
             <StatusBadge status={project.status} />
           </div>
           {project.description && (
@@ -81,7 +81,7 @@ export function ProjectHeader({ project, actions }: ProjectHeaderProps) {
           )}
         </div>
       </div>
-      {actions && <div className="flex items-center gap-2">{actions}</div>}
+      {actions && <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">{actions}</div>}
     </div>
   )
 }
@@ -105,7 +105,7 @@ export function ProjectShell({
       <ProjectHeader project={project} actions={actions} />
       <ProjectLNB project={project} isAdmin={isAdmin} />
       <div className="flex flex-1">
-        <div className="min-w-0 flex-1 p-6">{children}</div>
+        <div className="min-w-0 flex-1 p-4 sm:p-6">{children}</div>
         {sidebar}
       </div>
     </div>

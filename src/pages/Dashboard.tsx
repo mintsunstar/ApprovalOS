@@ -65,17 +65,19 @@ export function Dashboard() {
   ]
 
   return (
-    <div className="px-6 py-8 lg:px-8">
-      <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
+    <div className="px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+      <div className="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-ink">
+          <h1 className="text-xl font-bold tracking-tight text-ink sm:text-2xl">
             안녕하세요, {user?.name ?? '사용자'}님
           </h1>
           <p className="mt-1 text-sm text-ink-muted">
             오늘도 디자인 리뷰와 승인을 한곳에서 관리하세요
           </p>
         </div>
-        <Button onClick={() => navigate('/projects/new')}>+ 새 프로젝트</Button>
+        <Button className="w-full sm:w-auto" onClick={() => navigate('/projects/new')}>
+          + 새 프로젝트
+        </Button>
       </div>
 
       {/* Stat cards — mockup 1-1 */}
@@ -93,9 +95,9 @@ export function Dashboard() {
         ))}
       </div>
 
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+      <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <h2 className="text-lg font-bold text-ink">최근 프로젝트</h2>
-        <div className="flex gap-1 rounded-xl border border-border bg-surface-raised p-1">
+        <div className="scrollbar-none flex gap-1 overflow-x-auto rounded-xl border border-border bg-surface-raised p-1 [-webkit-overflow-scrolling:touch]">
           {tabs.map((t) => (
             <button
               key={t.key}
