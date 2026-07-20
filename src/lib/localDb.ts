@@ -16,6 +16,7 @@ import type {
   NotificationPrefs,
 } from '@/types'
 import { DEFAULT_NOTIFICATION_PREFS } from '@/types'
+import { putDataUrl } from '@/lib/fileStore'
 
 const STORAGE_KEY = 'approvalos_db_v1'
 
@@ -84,8 +85,85 @@ export function loadDB(): LocalDB {
   return emptyDB()
 }
 
+function estimateSize(db: LocalDB): number {
+  try {
+    return new Blob([JSON.stringify(db)]).size
+  } catch {
+    return JSON.stringify(db).length
+  }
+}
+
+function stripDataUrlsFromVersions(db: LocalDB): boolean {
+  let stripped = false
+  for (const v of db.item_versions) {
+    if (v.file_url?.startsWith('data:')) {
+      v.file_url = ''
+      stripped = true
+    }
+    if (v.thumbnail_url?.startsWith('data:')) {
+      v.thumbnail_url = v.file_url || ''
+      stripped = true
+    }
+  }
+  return stripped
+}
+
+/** Move base64 data URLs out of localStorage into IndexedDB (async, best-effort). */
+export async function migrateBlobsToIndexedDb(): Promise<void> {
+  const db = loadDB()
+  let changed = false
+  for (const v of db.item_versions) {
+    if (v.file_url?.startsWith('data:')) {
+      try {
+        v.file_url = await putDataUrl(v.file_url)
+        changed = true
+      } catch {
+        v.file_url = ''
+        changed = true
+      }
+    }
+    if (v.thumbnail_url?.startsWith('data:')) {
+      try {
+        v.thumbnail_url = await putDataUrl(v.thumbnail_url)
+        changed = true
+      } catch {
+        v.thumbnail_url = v.file_url || ''
+        changed = true
+      }
+    }
+  }
+  if (!changed) return
+  try {
+    saveDB(db)
+  } catch {
+    stripDataUrlsFromVersions(db)
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(db))
+    } catch {
+      /* ignore */
+    }
+  }
+}
+
 export function saveDB(db: LocalDB): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(db))
+  const json = JSON.stringify(db)
+  try {
+    localStorage.setItem(STORAGE_KEY, json)
+  } catch {
+    // Drop leftover base64 blobs so metadata can still be saved
+    if (stripDataUrlsFromVersions(db)) {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(db))
+        return
+      } catch {
+        /* fall through */
+      }
+    }
+    const sizeMb = (estimateSize(db) / (1024 * 1024)).toFixed(1)
+    throw new Error(
+      `브라우저 저장 공간이 부족합니다 (약 ${sizeMb}MB). 페이지를 새로고침한 뒤 다시 시도하거나, 설정에서 로컬 데이터를 정리해 주세요.`
+    )
+  }
 }
 
 export function mutateDB(fn: (db: LocalDB) => void): LocalDB {

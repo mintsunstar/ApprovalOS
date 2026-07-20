@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { differenceInCalendarDays, parseISO } from 'date-fns'
 import { StatusBadge } from '@/components/common/Badge'
+import { StoredImage } from '@/components/common/StoredImage'
 import type { Project } from '@/types'
 
 export function ProjectCard({ project }: { project: Project }) {
@@ -15,7 +16,7 @@ export function ProjectCard({ project }: { project: Project }) {
     >
       <div className="relative h-36 bg-surface">
         {cover ? (
-          <img src={cover} alt="" className="h-full w-full object-cover" />
+          <StoredImage fileRef={cover} alt="" className="h-full w-full object-cover" />
         ) : (
           <div className="flex h-full items-center justify-center bg-gradient-to-br from-accent-soft to-surface">
             <span className="text-sm font-medium text-accent">시안 없음</span>

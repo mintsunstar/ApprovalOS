@@ -6,9 +6,11 @@ import { Badge } from '@/components/common/Badge'
 import { Modal, ConfirmDialog } from '@/components/common/Modal'
 import { Textarea, Input } from '@/components/common/Input'
 import { useAuthStore } from '@/stores/authStore'
-import { localApi } from '@/lib/localDb'
+import { localApi, migrateBlobsToIndexedDb } from '@/lib/localDb'
+import { fileToStoredRef } from '@/lib/fileStore'
 import { toPercent } from '@/utils/pinCoords'
 import { toast } from '@/stores/toastStore'
+import { StoredImage, useStoredUrl } from '@/components/common/StoredImage'
 import type { DesignItem, PinComment, ItemVersion } from '@/types'
 
 export function ItemDetail() {
@@ -26,9 +28,12 @@ export function ItemDetail() {
   const [uploadOpen, setUploadOpen] = useState(false)
   const [changeNote, setChangeNote] = useState('')
   const [preview, setPreview] = useState<string | null>(null)
+  const [uploadFile, setUploadFile] = useState<File | null>(null)
   const [restoreId, setRestoreId] = useState<string | null>(null)
   const [compareVersions, setCompareVersions] = useState<string[]>([])
   const imgRef = useRef<HTMLDivElement>(null)
+
+  const displayUrl = useStoredUrl(viewVersion?.file_url ?? item?.current_version?.file_url)
 
   const refresh = () => {
     if (!itemId) return
@@ -54,7 +59,6 @@ export function ItemDetail() {
 
   const isAdmin = user.role === 'admin'
   const versions = item.versions ?? []
-  const displayUrl = viewVersion?.file_url ?? item.current_version?.file_url
   const visiblePins = pins.filter((p) => !hideResolved || !p.is_resolved)
   const items = localApi.getItems(id)
   const idx = items.findIndex((i) => i.id === itemId)
@@ -85,17 +89,24 @@ export function ItemDetail() {
     refresh()
   }
 
-  const uploadVersion = () => {
-    if (!preview) {
+  const uploadVersion = async () => {
+    if (!uploadFile) {
       toast.error('파일을 선택해주세요')
       return
     }
-    localApi.addVersion(item.id, preview, changeNote.trim() || null, user.id)
-    toast.success('새 버전이 업로드되었습니다')
-    setUploadOpen(false)
-    setPreview(null)
-    setChangeNote('')
-    refresh()
+    try {
+      await migrateBlobsToIndexedDb()
+      const file_url = await fileToStoredRef(uploadFile)
+      localApi.addVersion(item.id, file_url, changeNote.trim() || null, user.id)
+      toast.success('새 버전이 업로드되었습니다')
+      setUploadOpen(false)
+      setPreview(null)
+      setUploadFile(null)
+      setChangeNote('')
+      refresh()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : '업로드 실패')
+    }
   }
 
   return (
@@ -284,7 +295,11 @@ export function ItemDetail() {
                 >
                   <div className="flex items-center gap-2">
                     {v.thumbnail_url && (
-                      <img src={v.thumbnail_url} alt="" className="h-10 w-10 rounded object-cover" />
+                      <StoredImage
+                        fileRef={v.thumbnail_url}
+                        alt=""
+                        className="h-10 w-10 rounded object-cover"
+                      />
                     )}
                     <div>
                       <p className="text-sm font-medium">
@@ -392,9 +407,8 @@ export function ItemDetail() {
             onChange={(e) => {
               const f = e.target.files?.[0]
               if (!f) return
-              const reader = new FileReader()
-              reader.onload = () => setPreview(reader.result as string)
-              reader.readAsDataURL(f)
+              setUploadFile(f)
+              setPreview(URL.createObjectURL(f))
             }}
           />
           {preview && <img src={preview} alt="" className="max-h-40 object-contain" />}

@@ -9,8 +9,10 @@ import { Input, Textarea } from '@/components/common/Input'
 import { ProjectLNB, ProjectHeader } from '@/components/layout/ProjectLayout'
 import { useAuthStore } from '@/stores/authStore'
 import { useProjectStore } from '@/stores/projectStore'
-import { localApi } from '@/lib/localDb'
+import { localApi, migrateBlobsToIndexedDb } from '@/lib/localDb'
+import { fileToStoredRef } from '@/lib/fileStore'
 import { toast } from '@/stores/toastStore'
+import { StoredImage } from '@/components/common/StoredImage'
 import type { DesignItem } from '@/types'
 
 export function ProjectMain() {
@@ -238,8 +240,8 @@ function ItemCard({
       <Link to={`/projects/${projectId}/items/${item.id}`}>
         <div className="aspect-[4/3] overflow-hidden bg-surface">
           {item.current_version?.file_url ? (
-            <img
-              src={item.current_version.file_url}
+            <StoredImage
+              fileRef={item.current_version.file_url}
               alt={item.title}
               className="h-full w-full object-contain"
             />
@@ -327,32 +329,34 @@ function UploadModal({
   const [keywords, setKeywords] = useState('')
   const [description, setDescription] = useState('')
   const [preview, setPreview] = useState<string | null>(null)
+  const [file, setFile] = useState<File | null>(null)
   const [loading, setLoading] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
-  const onFile = (file: File) => {
+  const onFile = (f: File) => {
     const allowed = ['image/png', 'image/jpeg', 'image/jpg', 'image/svg+xml', 'application/pdf']
-    if (!allowed.includes(file.type) && !file.name.match(/\.(png|jpe?g|svg|pdf)$/i)) {
+    if (!allowed.includes(f.type) && !f.name.match(/\.(png|jpe?g|svg|pdf)$/i)) {
       toast.error('지원하지 않는 형식입니다 (PNG/JPG/SVG/PDF)')
       return
     }
-    if (file.size > 50 * 1024 * 1024) {
+    if (f.size > 50 * 1024 * 1024) {
       toast.error('파일 크기는 50MB 이하여야 합니다')
       return
     }
-    const reader = new FileReader()
-    reader.onload = () => setPreview(reader.result as string)
-    reader.readAsDataURL(file)
-    if (!title) setTitle(file.name.replace(/\.[^.]+$/, ''))
+    setFile(f)
+    setPreview(URL.createObjectURL(f))
+    if (!title) setTitle(f.name.replace(/\.[^.]+$/, ''))
   }
 
-  const handleUpload = () => {
-    if (!preview || !title.trim()) {
+  const handleUpload = async () => {
+    if (!file || !title.trim()) {
       toast.error('파일과 시안명을 입력해주세요')
       return
     }
     setLoading(true)
     try {
+      await migrateBlobsToIndexedDb()
+      const file_url = await fileToStoredRef(file)
       localApi.createItem({
         project_id: projectId,
         title: title.trim(),
@@ -361,7 +365,7 @@ function UploadModal({
           .map((k) => k.trim())
           .filter(Boolean),
         description: description.trim() || null,
-        file_url: preview,
+        file_url,
         created_by: userId,
       })
       toast.success('시안이 업로드되었습니다')
@@ -369,6 +373,7 @@ function UploadModal({
       setKeywords('')
       setDescription('')
       setPreview(null)
+      setFile(null)
       onDone()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : '업로드 실패')

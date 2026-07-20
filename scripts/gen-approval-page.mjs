@@ -1,4 +1,12 @@
-import { useEffect, useState } from 'react'
+import fs from 'fs'
+
+const L = JSON.parse(
+  fs.readFileSync(new URL('./ko-approval-labels.json', import.meta.url), 'utf8')
+)
+
+const j = (s) => JSON.stringify(s)
+
+const src = `import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Button } from '@/components/common/Button'
 import { Modal, ConfirmDialog } from '@/components/common/Modal'
@@ -50,20 +58,20 @@ export function ProjectApproval() {
                 size="sm"
                 onClick={() => {
                   if (!project.use_approval || lines.length === 0) {
-                    toast.error("승인 라인이 설정되지 않았습니다")
+                    toast.error(${j(L.noLine)})
                     return
                   }
                   localApi.startApproval(project.id)
-                  toast.success("승인이 시작되었습니다")
+                  toast.success(${j(L.started)})
                   refresh()
                 }}
               >
-                {"승인 시작"}
+                {${j(L.startBtn)}}
               </Button>
             )}
             {canApprove && (
-              <Button size="sm" onClick={() => navigate(`/projects/${project.id}/approval/review`)}>
-                {"승인 진행"}
+              <Button size="sm" onClick={() => navigate(\`/projects/\${project.id}/approval/review\`)}>
+                {${j(L.progressBtn)}}
               </Button>
             )}
           </>
@@ -74,10 +82,10 @@ export function ProjectApproval() {
         {rejectedLine && (
           <div className="card mb-6 border-danger/30 bg-danger-soft p-5">
             <h3 className="font-bold text-danger">
-              {rejectedLine.step_order}{"단계에서 반려되었습니다"}
+              {rejectedLine.step_order}{${j('\uB2E8\uACC4\uC5D0\uC11C \uBC18\uB824\uB418\uC5C8\uC2B5\uB2C8\uB2E4')}}
             </h3>
             <p className="mt-2 text-sm">
-              {"반려 사유:"}{' '}
+              {${j(L.reason)}}{' '}
               {rejectedLine.actions?.find((a) => a.action === 'rejected')?.reject_reason ?? '-'}
             </p>
             {isAdmin && (
@@ -86,19 +94,19 @@ export function ProjectApproval() {
                 size="sm"
                 onClick={() => {
                   localApi.restartApproval(project.id)
-                  toast.success("재승인 요청이 시작되었습니다")
+                  toast.success(${j(L.restartOk)})
                   refresh()
                 }}
               >
-                {"재승인 요청"}
+                {${j(L.restartBtn)}}
               </Button>
             )}
           </div>
         )}
 
-        <h2 className="mb-4 text-lg font-bold">{"승인 타임라인"}</h2>
+        <h2 className="mb-4 text-lg font-bold">{${j(L.timeline)}}</h2>
         {lines.length === 0 ? (
-          <p className="text-sm text-ink-muted">{"승인 라인이 없습니다. 프로젝트 설정에서 구성하세요."}</p>
+          <p className="text-sm text-ink-muted">{${j(L.noLines)}}</p>
         ) : (
           <ol className="space-y-3">
             {lines.map((line) => (
@@ -106,7 +114,7 @@ export function ProjectApproval() {
                 <div className="mb-2 flex flex-wrap items-center gap-2">
                   <StatusIcon status={line.status} />
                   <span className="font-semibold">
-                    {line.step_order}{"단계"} {line.step_name}
+                    {line.step_order}{${j(L.step)}} {line.step_name}
                   </span>
                   <Badge
                     tone={
@@ -120,15 +128,15 @@ export function ProjectApproval() {
                     }
                   >
                     {line.status === 'completed'
-                      ? "완료"
+                      ? ${j(L.done)}
                       : line.status === 'active'
-                        ? "진행 중"
+                        ? ${j(L.active)}
                         : line.status === 'rejected'
-                          ? "반려"
-                          : "대기"}
+                          ? ${j(L.rejected)}
+                          : ${j(L.pending)}}
                   </Badge>
                   <span className="text-xs text-ink-muted">
-                    ({line.approval_type === 'all' ? "전원" : "과반수"})
+                    ({line.approval_type === 'all' ? ${j(L.all)} : ${j(L.majority)}})
                   </span>
                 </div>
                 <ul className="ml-7 space-y-1">
@@ -143,9 +151,9 @@ export function ProjectApproval() {
                         <span className="text-ink-muted">
                           {action
                             ? action.action === 'approved'
-                              ? "승인"
-                              : "반려"
-                            : "대기 중"}
+                              ? ${j(L.approved)}
+                              : ${j(L.rejected)}
+                            : ${j(L.waiting)}}
                         </span>
                       </li>
                     )
@@ -156,18 +164,18 @@ export function ProjectApproval() {
           </ol>
         )}
 
-        <h2 className="mb-3 mt-8 text-lg font-bold">{"승인 이력"}</h2>
+        <h2 className="mb-3 mt-8 text-lg font-bold">{${j(L.history)}}</h2>
         <ul className="space-y-2 text-sm text-ink-muted">
           {lines.flatMap((line) =>
             (line.actions ?? []).map((a) => (
               <li key={a.id}>
                 {new Date(a.created_at).toLocaleDateString('ko-KR')}{' '}
-                {line.approvers?.find((u) => u.id === a.user_id)?.name} - {line.step_order}{"단계"}{' '}
-                {a.action === 'approved' ? "승인" : "반려"}
+                {line.approvers?.find((u) => u.id === a.user_id)?.name} - {line.step_order}{${j(L.step)}}{' '}
+                {a.action === 'approved' ? ${j(L.approved)} : ${j(L.rejected)}}
               </li>
             ))
           )}
-          {lines.every((l) => !l.actions?.length) && <li>{"이력이 없습니다"}</li>}
+          {lines.every((l) => !l.actions?.length) && <li>{${j(L.noHistory)}}</li>}
         </ul>
       </div>
     </div>
@@ -175,10 +183,10 @@ export function ProjectApproval() {
 }
 
 function StatusIcon({ status }: { status: ApprovalLine['status'] }) {
-  if (status === 'completed') return <span className="text-success">\u25CF</span>
-  if (status === 'active') return <span className="animate-pulse text-accent">\u25CF</span>
-  if (status === 'rejected') return <span className="text-danger">\u25CF</span>
-  return <span className="text-border">\u25CB</span>
+  if (status === 'completed') return <span className="text-success">${'\\u25CF'}</span>
+  if (status === 'active') return <span className="animate-pulse text-accent">${'\\u25CF'}</span>
+  if (status === 'rejected') return <span className="text-danger">${'\\u25CF'}</span>
+  return <span className="text-border">${'\\u25CB'}</span>
 }
 
 export function ApprovalReview() {
@@ -224,10 +232,10 @@ export function ApprovalReview() {
         selected_item_id: selectedItem,
         reject_reason: null,
       })
-      toast.success("승인 처리되었습니다")
-      navigate(`/projects/${project.id}/approval`)
+      toast.success(${j(L.approveOk)})
+      navigate(\`/projects/\${project.id}/approval\`)
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "승인 실패")
+      toast.error(err instanceof Error ? err.message : ${j(L.approveFail)})
     } finally {
       setLoading(false)
       setConfirmOpen(false)
@@ -237,7 +245,7 @@ export function ApprovalReview() {
   const reject = () => {
     if (!activeLine) return
     if (rejectReason.trim().length < 10) {
-      toast.error("반려 사유는 최소 10자 이상이어야 합니다")
+      toast.error(${j(L.rejectMin)})
       return
     }
     setLoading(true)
@@ -249,17 +257,17 @@ export function ApprovalReview() {
         selected_item_id: null,
         reject_reason: rejectReason.trim(),
       })
-      toast.success("반려 처리되었습니다")
-      navigate(`/projects/${project.id}/approval`)
+      toast.success(${j(L.rejectOk)})
+      navigate(\`/projects/\${project.id}/approval\`)
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "반려 실패")
+      toast.error(err instanceof Error ? err.message : ${j(L.rejectFail)})
     } finally {
       setLoading(false)
       setRejectOpen(false)
     }
   }
 
-  const finalTitle = items.find((i) => i.id === selectedItem)?.title ?? "없음"
+  const finalTitle = items.find((i) => i.id === selectedItem)?.title ?? ${j(L.noneLabel)}
 
   return (
     <div className="flex min-h-[calc(100vh-3.5rem)] flex-col">
@@ -267,11 +275,11 @@ export function ApprovalReview() {
       <ProjectLNB project={project} isAdmin={user.role === 'admin'} />
       <div className="mx-auto w-full max-w-3xl p-6">
         <h2 className="mb-2 text-lg font-bold">
-          {activeLine?.step_name ?? "승인"} {"검토"}
+          {activeLine?.step_name ?? ${j(L.approval)}} {${j(L.review)}}
         </h2>
 
         <section className="mt-6">
-          <h3 className="mb-3 font-semibold">{"시안 목록 (투표 결과 순)"}</h3>
+          <h3 className="mb-3 font-semibold">{${j(L.list)}}</h3>
           <div className="grid gap-3 sm:grid-cols-3">
             {sortedItems.map((item, i) => (
               <div key={item.id} className="card overflow-hidden">
@@ -285,10 +293,10 @@ export function ApprovalReview() {
                   )}
                 </div>
                 <div className="p-3 text-sm">
-                  <Badge tone="accent">{i + 1}{"위"}</Badge>
+                  <Badge tone="accent">{i + 1}{${j(L.rank)}}</Badge>
                   <p className="mt-1 font-semibold">{item.title}</p>
                   <p className="text-ink-muted">
-                    {item.vote_count ?? 0}{"표"} / {item.avg_score ?? 0}{"점"}
+                    {item.vote_count ?? 0}{${j(L.votes)}} / {item.avg_score ?? 0}{${j(L.score)}}
                   </p>
                 </div>
               </div>
@@ -297,23 +305,23 @@ export function ApprovalReview() {
         </section>
 
         <section className="card mt-6 p-4">
-          <h3 className="mb-2 font-semibold">{"투표 결과 요약"}</h3>
+          <h3 className="mb-2 font-semibold">{${j(L.summary)}}</h3>
           {sortedItems.slice(0, 3).map((item, i) => (
             <p key={item.id} className="text-sm text-ink-muted">
-              {i + 1}{"위"}: {item.title} ({item.vote_rate ?? 0}%)
+              {i + 1}{${j(L.rank)}}: {item.title} ({item.vote_rate ?? 0}%)
             </p>
           ))}
         </section>
 
         {analysis && (
           <section className="card mt-4 border-accent/20 bg-accent-soft/40 p-4">
-            <h3 className="mb-2 font-semibold">{"AI 분석 요약"}</h3>
+            <h3 className="mb-2 font-semibold">{${j(L.aiSummary)}}</h3>
             <p className="text-sm leading-relaxed text-ink-muted">{analysis.overall_summary}</p>
           </section>
         )}
 
         <section className="mt-6">
-          <h3 className="mb-3 font-semibold">{"최종 시안 선택 (선택사항)"}</h3>
+          <h3 className="mb-3 font-semibold">{${j(L.pickFinal)}}</h3>
           <div className="flex flex-wrap gap-3">
             {sortedItems.map((item, i) => (
               <label key={item.id} className="flex items-center gap-2 text-sm">
@@ -323,7 +331,7 @@ export function ApprovalReview() {
                   checked={selectedItem === item.id}
                   onChange={() => setSelectedItem(item.id)}
                 />
-                {item.title} {i === 0 ? "(권장)" : ''}
+                {item.title} {i === 0 ? ${j(L.recommend)} : ''}
               </label>
             ))}
             <label className="flex items-center gap-2 text-sm">
@@ -333,31 +341,31 @@ export function ApprovalReview() {
                 checked={selectedItem === null}
                 onChange={() => setSelectedItem(null)}
               />
-              {"선택 안함"}
+              {${j(L.none)}}
             </label>
           </div>
         </section>
 
         <div className="mt-8 flex justify-end gap-3">
           <Button variant="danger" onClick={() => setRejectOpen(true)}>
-            {"반려"}
+            {${j(L.reject)}}
           </Button>
           <Button variant="success" onClick={() => setConfirmOpen(true)}>
-            {"승인 완료"}
+            {${j(L.approveDone)}}
           </Button>
         </div>
 
         <Modal
           open={rejectOpen}
           onClose={() => setRejectOpen(false)}
-          title={"반려 사유 입력"}
+          title={${j(L.rejectTitle)}}
           footer={
             <>
               <Button variant="secondary" onClick={() => setRejectOpen(false)}>
-                {"취소"}
+                {${j(L.cancel)}}
               </Button>
               <Button variant="danger" loading={loading} onClick={reject}>
-                {"반려 처리"}
+                {${j(L.rejectDo)}}
               </Button>
             </>
           }
@@ -366,21 +374,26 @@ export function ApprovalReview() {
             value={rejectReason}
             onChange={(e) => setRejectReason(e.target.value.slice(0, 500))}
             rows={4}
-            placeholder={"수정이 필요한 내용을 구체적으로 입력해주세요. (최소 10자)"}
+            placeholder={${j(L.rejectPh)}}
           />
-          <p className="mt-1 text-xs text-ink-muted">{"글자 수:"} {rejectReason.length}/500</p>
+          <p className="mt-1 text-xs text-ink-muted">{${j(L.chars)}} {rejectReason.length}/500</p>
         </Modal>
 
         <ConfirmDialog
           open={confirmOpen}
           onClose={() => setConfirmOpen(false)}
           onConfirm={approve}
-          title={"승인하시겠습니까?"}
-          description={"최종 시안 선택: {t}. 이 내용으로 승인하시겠습니까?".replace('{t}', finalTitle)}
-          confirmLabel={"승인 완료"}
+          title={${j(L.confirmTitle)}}
+          description={${j(L.confirmDesc)}.replace('{t}', finalTitle)}
+          confirmLabel={${j(L.approveDone)}}
           loading={loading}
         />
       </div>
     </div>
   )
 }
+`
+
+fs.writeFileSync(new URL('../src/pages/ProjectApproval.tsx', import.meta.url), src, 'utf8')
+const out = fs.readFileSync(new URL('../src/pages/ProjectApproval.tsx', import.meta.url), 'utf8')
+console.log('hangul', /[\uAC00-\uD7A3]/.test(out), 'has start', out.includes(L.startBtn))

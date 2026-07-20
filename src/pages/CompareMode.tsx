@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch'
 import { Button } from '@/components/common/Button'
+import { StoredImage } from '@/components/common/StoredImage'
 import { localApi } from '@/lib/localDb'
 import { toast } from '@/stores/toastStore'
 import type { DesignItem, ItemVersion, PinComment } from '@/types'
@@ -186,7 +187,7 @@ function PanelImage({ url, pins }: { url?: string; pins: PinComment[] }) {
         <TransformComponent>
           <div className="relative inline-block">
             {url ? (
-              <img src={url} alt="" className="max-h-[70vh] max-w-full object-contain" />
+              <StoredImage fileRef={url} alt="" className="max-h-[70vh] max-w-full object-contain" />
             ) : (
               <p className="text-white/50">이미지 없음</p>
             )}

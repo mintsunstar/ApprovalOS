@@ -17,6 +17,7 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 import { Button } from '@/components/common/Button'
 import { Textarea } from '@/components/common/Input'
+import { StoredImage } from '@/components/common/StoredImage'
 import { ProjectLNB, ProjectHeader } from '@/components/layout/ProjectLayout'
 import { useAuthStore } from '@/stores/authStore'
 import { useProjectStore } from '@/stores/projectStore'
@@ -178,8 +179,8 @@ export function ProjectVote() {
                 >
                   <div className="aspect-video bg-surface">
                     {item.current_version?.file_url && (
-                      <img
-                        src={item.current_version.file_url}
+                      <StoredImage
+                        fileRef={item.current_version.file_url}
                         alt=""
                         className="h-full w-full object-contain"
                       />
