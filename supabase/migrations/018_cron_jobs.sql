@@ -1,0 +1,19 @@
+-- 018_cron_jobs.sql
+-- Requires pg_cron extension
+-- Close projects past deadline
+-- SELECT cron.schedule(
+--   'close-expired-projects',
+--   '0 * * * *',
+--   $$UPDATE projects SET status = 'closed', updated_at = now()
+--      WHERE status IN ('active', 'voting') AND deadline < now()$$
+-- );
+
+-- Approval timeout reminder (placeholder)
+-- SELECT cron.schedule(
+--   'check-approval-timeout',
+--   '0 9 * * *',
+--   $$SELECT net.http_post(
+--      url := current_setting('app.settings.edge_url') || '/functions/v1/check-approval-timeout',
+--      headers := '{"Authorization": "Bearer ' || current_setting('app.settings.service_role') || '"}'::jsonb
+--    )$$
+-- );

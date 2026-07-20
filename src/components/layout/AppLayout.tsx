@@ -1,0 +1,249 @@
+import { useEffect, useState } from 'react'
+import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { useAuthStore } from '@/stores/authStore'
+import { useNotificationStore } from '@/stores/notificationStore'
+import { ToastContainer } from '@/components/common/Toast'
+import { localApi } from '@/lib/localDb'
+
+function IconHome({ className = '' }: { className?: string }) {
+  return (
+    <svg className={className} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <path d="M3 10.5 12 3l9 7.5V21a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1v-10.5z" />
+    </svg>
+  )
+}
+function IconPlus({ className = '' }: { className?: string }) {
+  return (
+    <svg className={className} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <path d="M12 5v14M5 12h14" />
+    </svg>
+  )
+}
+function IconUsers({ className = '' }: { className?: string }) {
+  return (
+    <svg className={className} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+      <circle cx="9" cy="7" r="4" />
+      <path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
+    </svg>
+  )
+}
+function IconCheck({ className = '' }: { className?: string }) {
+  return (
+    <svg className={className} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <path d="M9 11l3 3L22 4" />
+      <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+    </svg>
+  )
+}
+function IconSettings({ className = '' }: { className?: string }) {
+  return (
+    <svg className={className} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+    </svg>
+  )
+}
+function IconBell({ className = '' }: { className?: string }) {
+  return (
+    <svg className={className} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+      <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+    </svg>
+  )
+}
+
+export function AppLayout() {
+  const { user, logout, init, loading } = useAuthStore()
+  const { notifications, load, markRead, markAllRead, unreadCount } = useNotificationStore()
+  const [notifOpen, setNotifOpen] = useState(false)
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    init()
+  }, [init])
+
+  useEffect(() => {
+    if (user) load(user.id)
+  }, [user, load])
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-surface">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-accent border-t-transparent" />
+      </div>
+    )
+  }
+
+  if (!user) {
+    navigate('/login')
+    return null
+  }
+
+  const workspace = user.workspace_id ? localApi.getWorkspace(user.workspace_id) : null
+  const showApproval = user.role === 'approver' || user.role === 'admin'
+  const unread = unreadCount()
+
+  const navClass = ({ isActive }: { isActive: boolean }) =>
+    `flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition ${
+      isActive
+        ? 'bg-accent text-white shadow-sm'
+        : 'text-ink-muted hover:bg-accent-soft hover:text-accent'
+    }`
+
+  return (
+    <div className="flex min-h-screen bg-surface">
+      {/* Left Sidebar — mockup style */}
+      <aside className="sticky top-0 flex h-screen w-[220px] shrink-0 flex-col border-r border-border bg-surface-raised">
+        <div className="flex items-center gap-2.5 px-5 py-5">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent text-sm font-bold text-white">
+            A
+          </div>
+          <Link to="/dashboard" className="text-base font-bold tracking-tight text-ink">
+            ApprovalOS
+          </Link>
+        </div>
+
+        <nav className="flex flex-1 flex-col gap-0.5 px-3">
+          <p className="mb-1 px-3 text-[11px] font-semibold uppercase tracking-wider text-ink-muted/70">
+            워크스페이스
+          </p>
+          <NavLink to="/dashboard" className={navClass}>
+            <IconHome /> 대시보드
+          </NavLink>
+          <NavLink to="/projects/new" className={navClass}>
+            <IconPlus /> 새 프로젝트
+          </NavLink>
+          <NavLink to="/workspace/settings" className={navClass}>
+            <IconUsers /> 멤버 · 설정
+          </NavLink>
+          {showApproval && (
+            <NavLink to="/approval" className={navClass}>
+              <IconCheck /> 승인 센터
+            </NavLink>
+          )}
+
+          <div className="my-3 border-t border-border" />
+          <p className="mb-1 px-3 text-[11px] font-semibold uppercase tracking-wider text-ink-muted/70">
+            계정
+          </p>
+          <NavLink to="/account" className={navClass}>
+            <IconSettings /> 계정 설정
+          </NavLink>
+        </nav>
+
+        <div className="border-t border-border p-3">
+          <div className="mb-2 flex items-center gap-2 rounded-xl px-2 py-2">
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-accent text-sm font-semibold text-white">
+              {user.name.charAt(0)}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-medium text-ink">{user.name}</p>
+              <p className="truncate text-[11px] text-ink-muted">{workspace?.name ?? '워크스페이스'}</p>
+            </div>
+          </div>
+          <button
+            className="w-full rounded-lg px-3 py-2 text-left text-xs text-ink-muted hover:bg-danger-soft hover:text-danger"
+            onClick={() => {
+              logout()
+              navigate('/login')
+            }}
+          >
+            로그아웃
+          </button>
+        </div>
+      </aside>
+
+      {/* Main */}
+      <div className="flex min-w-0 flex-1 flex-col">
+        <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-border bg-surface-raised/90 px-6 backdrop-blur">
+          <div className="text-sm text-ink-muted">
+            {workspace ? (
+              <>
+                <span className="font-medium text-ink">{workspace.name}</span>
+                <span className="mx-2 text-border">|</span>
+                <span>디자인 리뷰 · 승인 플랫폼</span>
+              </>
+            ) : (
+              'ApprovalOS'
+            )}
+          </div>
+          <div className="relative">
+            <button
+              onClick={() => setNotifOpen(!notifOpen)}
+              className="relative flex h-9 w-9 items-center justify-center rounded-xl text-ink-muted hover:bg-accent-soft hover:text-accent"
+              aria-label="알림"
+            >
+              <IconBell />
+              {unread > 0 && (
+                <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[10px] text-white">
+                  {unread}
+                </span>
+              )}
+            </button>
+            {notifOpen && (
+              <div className="absolute right-0 mt-2 w-80 overflow-hidden rounded-xl border border-border bg-surface-raised shadow-[var(--shadow-card-hover)]">
+                <div className="flex items-center justify-between border-b border-border px-4 py-3">
+                  <span className="font-semibold">알림</span>
+                  <button className="text-xs font-medium text-accent" onClick={() => markAllRead(user.id)}>
+                    모두 읽음
+                  </button>
+                </div>
+                <div className="max-h-72 overflow-auto">
+                  {notifications.length === 0 ? (
+                    <p className="px-4 py-8 text-center text-sm text-ink-muted">알림이 없습니다</p>
+                  ) : (
+                    notifications.slice(0, 20).map((n) => (
+                      <button
+                        key={n.id}
+                        className={`block w-full border-b border-border px-4 py-3 text-left hover:bg-accent-soft/50 ${
+                          !n.is_read ? 'bg-accent-soft/30' : ''
+                        }`}
+                        onClick={() => {
+                          markRead(n.id)
+                          setNotifOpen(false)
+                          if (n.link) navigate(n.link)
+                        }}
+                      >
+                        <p className="text-sm font-medium">{n.title}</p>
+                        <p className="mt-0.5 text-xs text-ink-muted">{n.body}</p>
+                      </button>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        </header>
+        <main className="flex-1">
+          <Outlet />
+        </main>
+      </div>
+      <ToastContainer />
+    </div>
+  )
+}
+
+export function AuthLayout() {
+  return (
+    <div className="flex min-h-screen flex-col items-center justify-center bg-surface px-4">
+      <div
+        className="pointer-events-none absolute inset-0"
+        style={{
+          background:
+            'radial-gradient(ellipse 80% 50% at 50% -20%, #dbeafe, transparent), radial-gradient(ellipse 50% 40% at 100% 100%, #eff6ff, transparent)',
+        }}
+      />
+      <div className="relative z-10 w-full max-w-md">
+        <Link to="/" className="mb-8 flex items-center justify-center gap-2">
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent text-lg font-bold text-white">
+            A
+          </span>
+          <span className="text-2xl font-bold tracking-tight text-ink">ApprovalOS</span>
+        </Link>
+        <Outlet />
+      </div>
+      <ToastContainer />
+    </div>
+  )
+}
