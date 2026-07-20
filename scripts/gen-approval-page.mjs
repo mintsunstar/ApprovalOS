@@ -78,7 +78,7 @@ export function ProjectApproval() {
         }
       />
       <ProjectLNB project={project} isAdmin={isAdmin} />
-      <div className="mx-auto w-full max-w-2xl p-6">
+      <div className="mx-auto w-full max-w-2xl p-4 sm:p-6">
         {rejectedLine && (
           <div className="card mb-6 border-danger/30 bg-danger-soft p-5">
             <h3 className="font-bold text-danger">
@@ -273,7 +273,7 @@ export function ApprovalReview() {
     <div className="flex min-h-[calc(100vh-3.5rem)] flex-col">
       <ProjectHeader project={project} />
       <ProjectLNB project={project} isAdmin={user.role === 'admin'} />
-      <div className="mx-auto w-full max-w-3xl p-6">
+      <div className="mx-auto w-full max-w-3xl p-4 sm:p-6">
         <h2 className="mb-2 text-lg font-bold">
           {activeLine?.step_name ?? ${j(L.approval)}} {${j(L.review)}}
         </h2>

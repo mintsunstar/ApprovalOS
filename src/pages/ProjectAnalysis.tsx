@@ -75,7 +75,7 @@ export function ProjectAnalysis() {
         }
       />
       <ProjectLNB project={project} isAdmin={isAdmin} />
-      <div className="p-6">
+      <div className="p-4 sm:p-6">
         {!analysis ? (
           <EmptyState
             title={"AI 분석을 아직 실행하지 않았습니다"}

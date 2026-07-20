@@ -85,7 +85,7 @@ export function ProjectComments() {
     <div className="flex min-h-[calc(100vh-3.5rem)] flex-col">
       <ProjectHeader project={project} />
       <ProjectLNB project={project} isAdmin={user.role === 'admin'} />
-      <div className="mx-auto w-full max-w-3xl p-6">
+      <div className="mx-auto w-full max-w-3xl p-4 sm:p-6">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div className="flex gap-1 rounded-xl border border-border bg-surface-raised p-1">
             {(

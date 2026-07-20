@@ -64,6 +64,18 @@ export function ProjectVote() {
     }
   }, [items, rankings.length])
 
+  const sensors = useSensors(useSensor(PointerSensor))
+
+  const onDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+    setRankings((list) => {
+      const oldIndex = list.indexOf(String(active.id))
+      const newIndex = list.indexOf(String(over.id))
+      return arrayMove(list, oldIndex, newIndex)
+    })
+  }
+
   if (!currentProject || !user) return null
   const project = currentProject
   const isClosed = project.status === 'closed'
@@ -75,18 +87,6 @@ export function ProjectVote() {
     if (voteType === 'rank') return 2
     if (voteType === 'score') return 2
     return 4
-  }
-
-  const sensors = useSensors(useSensor(PointerSensor))
-
-  const onDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event
-    if (!over || active.id === over.id) return
-    setRankings((list) => {
-      const oldIndex = list.indexOf(String(active.id))
-      const newIndex = list.indexOf(String(over.id))
-      return arrayMove(list, oldIndex, newIndex)
-    })
   }
 
   const submit = () => {
@@ -169,7 +169,7 @@ export function ProjectVote() {
     <div className="flex min-h-[calc(100vh-3.5rem)] flex-col">
       <ProjectHeader project={project} />
       <ProjectLNB project={project} isAdmin={isAdmin} />
-      <div className="mx-auto w-full max-w-2xl p-6">
+      <div className="mx-auto w-full max-w-2xl p-4 sm:p-6">
         <div className="mb-6 flex gap-2">
           {Array.from({ length: totalSteps }, (_, i) => i + 1).map((s) => (
             <div
@@ -499,7 +499,7 @@ export function ProjectReport() {
     <div className="flex min-h-[calc(100vh-3.5rem)] flex-col">
       <ProjectHeader project={project} />
       <ProjectLNB project={project} isAdmin={user.role === 'admin'} />
-      <div className="grid gap-6 p-6 lg:grid-cols-2">
+      <div className="grid gap-6 p-4 sm:p-6 lg:grid-cols-2">
         <div className="card p-5">
           <h2 className="mb-4 font-bold">{${j(L.report.options)}}</h2>
           <div className="space-y-2">
@@ -634,7 +634,7 @@ export function ProjectSettings() {
     <div className="flex min-h-[calc(100vh-3.5rem)] flex-col">
       <ProjectHeader project={project} />
       <ProjectLNB project={project} isAdmin />
-      <div className="mx-auto w-full max-w-lg space-y-4 p-6">
+      <div className="mx-auto w-full max-w-lg space-y-4 p-4 sm:p-6">
         <div className="card space-y-4 p-5">
           <Input label={${j(L.settings.projectName)}} value={title} onChange={(e) => setTitle(e.target.value)} />
           <Input
