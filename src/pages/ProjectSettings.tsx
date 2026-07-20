@@ -53,7 +53,7 @@ export function ProjectSettings() {
           ? project.public_token ?? crypto.randomUUID().slice(0, 12)
           : null,
     })
-    toast.success('???????')
+    toast.success("저장되었습니다")
     loadProject(project.id)
   }
 
@@ -63,36 +63,36 @@ export function ProjectSettings() {
       <ProjectLNB project={project} isAdmin />
       <div className="mx-auto w-full max-w-lg space-y-4 p-6">
         <div className="card space-y-4 p-5">
-          <Input label="?????" value={title} onChange={(e) => setTitle(e.target.value)} />
+          <Input label={"프로젝트명"} value={title} onChange={(e) => setTitle(e.target.value)} />
           <Input
-            label="???"
+            label={"마감일"}
             type="date"
             value={deadline}
             onChange={(e) => setDeadline(e.target.value)}
           />
           <Select
-            label="?? ??"
+            label={"투표 방식"}
             value={voteType}
             onChange={(e) => setVoteType(e.target.value as VoteType)}
             options={[
-              { value: 'single', label: '?? ??' },
-              { value: 'rank', label: '?? ???' },
-              { value: 'score', label: '??? ??' },
-              { value: 'combined', label: '??' },
+              { value: 'single', label: "단일 선택" },
+              { value: 'rank', label: "순위 투표" },
+              { value: 'score', label: "평가 점수" },
+              { value: 'combined', label: "복합" },
             ]}
           />
           <Select
-            label="?? ??"
+            label={"공개 범위"}
             value={visibility}
             onChange={(e) => setVisibility(e.target.value as 'internal' | 'link')}
             options={[
-              { value: 'internal', label: '???' },
-              { value: 'link', label: '?? ??' },
+              { value: 'internal', label: "내부만" },
+              { value: 'link', label: "링크 공개" },
             ]}
           />
           {visibility === 'link' && project.public_token && (
             <div className="rounded-lg bg-accent-soft p-3 text-sm">
-              ?? ?? ??:{' '}
+              {"공개 투표 링크:"}{' '}
               <code className="text-accent">/vote/{project.public_token}</code>
               <Button
                 size="sm"
@@ -102,38 +102,38 @@ export function ProjectSettings() {
                   navigator.clipboard.writeText(
                     `${window.location.origin}/vote/${project.public_token}`
                   )
-                  toast.success('???')
+                  toast.success("복사됨")
                 }}
               >
-                ??
+                {"복사"}
               </Button>
             </div>
           )}
           <div className="flex flex-wrap gap-2 pt-2">
-            <Button onClick={save}>??</Button>
+            <Button onClick={save}>{"저장"}</Button>
             {project.status !== 'closed' ? (
               <Button
                 variant="secondary"
                 onClick={() => {
-                  if (confirm('????? ?????????')) {
+                  if (confirm("프로젝트를 마감하시겠습니까?")) {
                     localApi.updateProject(project.id, { status: 'closed' })
-                    toast.success('???????')
+                    toast.success("마감되었습니다")
                     loadProject(project.id)
                   }
                 }}
               >
-                ?? ??
+                {"지금 마감"}
               </Button>
             ) : (
               <Button
                 variant="secondary"
                 onClick={() => {
                   localApi.updateProject(project.id, { status: 'active' })
-                  toast.success('????????')
+                  toast.success("다시 열었습니다")
                   loadProject(project.id)
                 }}
               >
-                ???
+                {"다시 열기"}
               </Button>
             )}
           </div>
@@ -142,19 +142,19 @@ export function ProjectSettings() {
           className="text-sm font-medium text-danger hover:underline"
           onClick={() => setDeleteOpen(true)}
         >
-          ???? ??
+          {"프로젝트 삭제"}
         </button>
       </div>
       <ConfirmDialog
         open={deleteOpen}
         onClose={() => setDeleteOpen(false)}
-        title="???? ??"
-        description="?? ??, ??, ??? ?????. ? ??? ??? ? ????."
-        confirmLabel="??"
+        title={"프로젝트 삭제"}
+        description={"시안, 투표, 댓글이 모두 삭제됩니다. 이 작업은 되돌릴 수 없습니다."}
+        confirmLabel={"삭제"}
         danger
         onConfirm={() => {
           localApi.deleteProject(project.id)
-          toast.success('???????')
+          toast.success("삭제되었습니다")
           navigate('/dashboard')
         }}
       />

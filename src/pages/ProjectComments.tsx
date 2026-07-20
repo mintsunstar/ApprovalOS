@@ -62,7 +62,7 @@ export function ProjectComments() {
 
   const submitComment = (parentId: string | null, text: string) => {
     if (!text.trim()) {
-      toast.error('?? ??? ??????')
+      toast.error("댓글 내용을 입력해주세요")
       return
     }
     localApi.createComment({
@@ -73,7 +73,7 @@ export function ProjectComments() {
       item_ids: parentId ? [] : taggedItems,
       parent_id: parentId,
     })
-    toast.success('??? ???????')
+    toast.success("댓글이 등록되었습니다")
     setContent('')
     setReplyContent('')
     setReplyTo(null)
@@ -90,9 +90,9 @@ export function ProjectComments() {
           <div className="flex gap-1 rounded-xl border border-border bg-surface-raised p-1">
             {(
               [
-                ['all', '??'],
-                ['pin', '? ??'],
-                ['item', '???'],
+                ['all', "전체"],
+                ['pin', "핀 댓글"],
+                ['item', "시안별"],
               ] as const
             ).map(([k, label]) => (
               <button
@@ -112,8 +112,8 @@ export function ProjectComments() {
               value={sort}
               onChange={(e) => setSort(e.target.value as Sort)}
             >
-              <option value="latest">???</option>
-              <option value="likes">????</option>
+              <option value="latest">{"최신순"}</option>
+              <option value="likes">{"좋아요순"}</option>
             </select>
           )}
         </div>
@@ -126,7 +126,7 @@ export function ProjectComments() {
               }`}
               onClick={() => setFilterItem('all')}
             >
-              ??
+              {"전체"}
             </button>
             {items.map((item) => (
               <button
@@ -147,7 +147,7 @@ export function ProjectComments() {
             <Textarea
               value={content}
               onChange={(e) => setContent(e.target.value)}
-              placeholder="??? ?????"
+              placeholder={"의견을 남겨주세요"}
               rows={3}
             />
             <div className="mt-2 flex flex-wrap gap-2">
@@ -172,7 +172,7 @@ export function ProjectComments() {
             </div>
             <div className="mt-3 flex justify-end">
               <Button size="sm" onClick={() => submitComment(null, content)}>
-                ??
+                {"등록"}
               </Button>
             </div>
           </div>
@@ -181,8 +181,8 @@ export function ProjectComments() {
         {tab === 'pin' ? (
           pins.length === 0 ? (
             <EmptyState
-              title="? ??? ????"
-              description="?? ???? ??? ?? ??? ?? ?????"
+              title={"핀 댓글이 없습니다"}
+              description={"시안 상세에서 이미지에 핀을 남겨 의견을 공유하세요"}
             />
           ) : (
             <div className="space-y-3">
@@ -211,7 +211,7 @@ export function ProjectComments() {
                           to={`/projects/${project.id}/items/${pin.item_id}`}
                           className="mt-1 inline-block text-xs font-medium text-accent hover:underline"
                         >
-                          ???? ??
+                          {"시안으로 이동"}
                         </Link>
                       </div>
                     </div>
@@ -221,7 +221,10 @@ export function ProjectComments() {
             </div>
           )
         ) : filtered.length === 0 ? (
-          <EmptyState title="??? ????" description="? ??? ?????" />
+          <EmptyState
+            title={"댓글이 없습니다"}
+            description={"첫 의견을 남겨보세요"}
+          />
         ) : (
           <ul className="space-y-4">
             {filtered.map((c) => (
@@ -261,10 +264,10 @@ export function ProjectComments() {
                       refresh()
                     }}
                   >
-                    ? {c.like_count}
+                    {'\u2665'} {c.like_count}
                   </button>
                   <button className="text-xs text-ink-muted" onClick={() => setReplyTo(c.id)}>
-                    ??
+                    {"답글"}
                   </button>
                 </div>
                 {c.replies?.map((r) => (
@@ -282,7 +285,7 @@ export function ProjectComments() {
                       className="flex-1"
                     />
                     <Button size="sm" onClick={() => submitComment(c.id, replyContent)}>
-                      ??
+                      {"등록"}
                     </Button>
                   </div>
                 )}

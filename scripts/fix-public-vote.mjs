@@ -1,4 +1,12 @@
-import { useEffect, useState } from 'react'
+import fs from 'fs'
+import path from 'path'
+import { fileURLToPath } from 'url'
+
+const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..')
+const j = (s) => JSON.stringify(s)
+const labels = JSON.parse(fs.readFileSync(path.join(root, 'scripts/ko-public-vote.json'), 'utf8'))
+
+const src = `import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { Button } from '@/components/common/Button'
 import { Input, Textarea } from '@/components/common/Input'
@@ -23,16 +31,16 @@ export function PublicVote() {
     if (!token) return
     const p = localApi.getProjectByPublicToken(token)
     if (!p) {
-      setError("접근 권한이 없습니다")
+      setError(${j(labels.noAccess)})
       return
     }
     if (p.visibility !== 'link') {
-      setError("접근 권한이 없습니다")
+      setError(${j(labels.noAccess)})
       return
     }
     if (p.status === 'closed') {
       setError(
-        "투표가 마감되었습니다 (마감일: " +
+        ${j(labels.closedPrefix)} +
           new Date(p.deadline).toLocaleDateString('ko-KR') +
           ')'
       )
@@ -61,8 +69,8 @@ export function PublicVote() {
   if (done) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-surface px-4">
-        <h1 className="font-display text-3xl">{"투표해주셔서 감사합니다!"}</h1>
-        <p className="mt-3 text-ink-muted">{"여러분의 의견이 반영됩니다."}</p>
+        <h1 className="font-display text-3xl">{${j(labels.thanks)}}</h1>
+        <p className="mt-3 text-ink-muted">{${j(labels.thanksDesc)}}</p>
         <ToastContainer />
       </div>
     )
@@ -75,17 +83,17 @@ export function PublicVote() {
           <p className="mb-1 text-center font-display text-2xl">ApprovalOS</p>
           <h1 className="mb-6 text-center text-lg font-semibold">{project.title}</h1>
           <Input
-            label={"이름을 입력해주세요"}
+            label={${j(labels.nameLabel)}}
             value={name}
             onChange={(e) => setName(e.target.value.slice(0, 20))}
-            placeholder={"이름 또는 닉네임"}
+            placeholder={${j(labels.namePh)}}
           />
           <Button
             className="mt-4 w-full"
             disabled={!name.trim()}
             onClick={() => setStarted(true)}
           >
-            {"투표 시작하기"}
+            {${j(labels.start)}}
           </Button>
         </div>
         <ToastContainer />
@@ -101,9 +109,9 @@ export function PublicVote() {
           {items.map((item) => (
             <label
               key={item.id}
-              className={`cursor-pointer overflow-hidden rounded-xl border ${
+              className={\`cursor-pointer overflow-hidden rounded-xl border \${
                 selected.includes(item.id) ? 'border-accent ring-2 ring-accent/20' : 'border-border'
-              }`}
+              }\`}
             >
               <div className="aspect-video bg-surface-raised">
                 {item.current_version?.file_url && (
@@ -133,7 +141,7 @@ export function PublicVote() {
         </div>
         <Textarea
           className="mt-4"
-          placeholder={"의견 (선택)"}
+          placeholder={${j(labels.commentPh)}}
           rows={2}
           value={comment}
           onChange={(e) => setComment(e.target.value)}
@@ -151,14 +159,18 @@ export function PublicVote() {
               scores: {},
               comment: comment.trim() || null,
             })
-            toast.success("투표가 완료되었습니다")
+            toast.success(${j(labels.done)})
             setDone(true)
           }}
         >
-          {"제출"}
+          {${j(labels.submit)}}
         </Button>
       </div>
       <ToastContainer />
     </div>
   )
 }
+`
+
+fs.writeFileSync(path.join(root, 'src/pages/PublicVote.tsx'), src, 'utf8')
+console.log('PublicVote hangul', /[\uAC00-\uD7A3]/.test(src), 'StoredImage', src.includes('StoredImage'))

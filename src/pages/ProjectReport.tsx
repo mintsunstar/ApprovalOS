@@ -8,11 +8,11 @@ import { localApi } from '@/lib/localDb'
 import { toast } from '@/stores/toastStore'
 
 const OPTIONS = [
-  { key: 'votes', label: '?? ??' },
-  { key: 'ai', label: 'AI ??' },
-  { key: 'pins', label: '? ?? ??' },
-  { key: 'approval', label: '?? ??' },
-  { key: 'members', label: '??? ??' },
+  { key: 'votes', label: "투표 결과" },
+  { key: 'ai', label: "AI 분석" },
+  { key: 'pins', label: "핀 댓글 요약" },
+  { key: 'approval', label: "승인 이력" },
+  { key: 'members', label: "참여자 정보" },
 ] as const
 
 export function ProjectReport() {
@@ -39,26 +39,26 @@ export function ProjectReport() {
   }
 
   const buildReportHtml = () => {
-    let body = `<h1>${project.title}</h1><p>???: ${new Date().toLocaleDateString('ko-KR')}</p>`
+    let body = `<h1>${project.title}</h1><p>${"작성일"}: ${new Date().toLocaleDateString('ko-KR')}</p>`
     if (selected.includes('votes')) {
-      body += '<h2>?? ??</h2><ul>'
+      body += `<h2>${"투표 결과"}</h2><ul>`
       for (const item of items) {
-        body += `<li>${item.title}: ${item.vote_count ?? 0}? (${item.vote_rate ?? 0}%) ?${item.avg_score ?? 0}</li>`
+        body += `<li>${item.title}: ${item.vote_count ?? 0}${"표"} (${item.vote_rate ?? 0}%) ${"점"}${item.avg_score ?? 0}</li>`
       }
-      body += `</ul><p>? ??: ${votes.length}?</p>`
+      body += `</ul><p>${"총 투표"}: ${votes.length}${"표"}</p>`
     }
     if (selected.includes('ai') && analysis) {
-      body += `<h2>AI ??</h2><p>${analysis.overall_summary}</p>`
+      body += `<h2>${"AI 분석"}</h2><p>${analysis.overall_summary}</p>`
     }
     if (selected.includes('pins')) {
-      body += '<h2>? ?? ??</h2><ul>'
+      body += `<h2>${"핀 댓글 요약"}</h2><ul>`
       for (const item of items) {
-        body += `<li>${item.title}: ? ${localApi.getPins(item.id).length}?</li>`
+        body += `<li>${item.title}: ${localApi.getPins(item.id).length}${"개"}</li>`
       }
       body += '</ul>'
     }
     if (selected.includes('approval')) {
-      body += '<h2>?? ??</h2><ul>'
+      body += `<h2>${"승인 이력"}</h2><ul>`
       for (const line of lines) {
         for (const a of line.actions ?? []) {
           body += `<li>${line.step_name}: ${a.action}</li>`
@@ -67,15 +67,15 @@ export function ProjectReport() {
       body += '</ul>'
     }
     if (selected.includes('members')) {
-      body += `<h2>???</h2><p>${project.member_count}?</p>`
+      body += `<h2>${"참여자 정보"}</h2><p>${project.member_count}${"명"}</p>`
     }
-    return `<!DOCTYPE html><html><head><title>${project.title} ???</title>
+    return `<!DOCTYPE html><html><head><title>${project.title} ${"보고서"}</title>
       <style>body{font-family:sans-serif;padding:40px;max-width:800px;margin:auto}h1{color:#2563eb}</style>
       </head><body>${body}</body></html>`
   }
 
   const generatePdf = () => {
-    if (voteRate < 50) toast.warning('???? 50% ?????. ??? ???? ?????.')
+    if (voteRate < 50) toast.warning("투표율이 50% 미만입니다. 그래도 보고서를 생성할까요?")
     setGenerating(true)
     setTimeout(() => {
       const w = window.open('', '_blank')
@@ -84,7 +84,7 @@ export function ProjectReport() {
         w.document.close()
         w.print()
       }
-      toast.success('???? ???????')
+      toast.success("보고서가 생성되었습니다")
       setGenerating(false)
     }, 400)
   }
@@ -95,7 +95,7 @@ export function ProjectReport() {
       <ProjectLNB project={project} isAdmin={user.role === 'admin'} />
       <div className="grid gap-6 p-6 lg:grid-cols-2">
         <div className="card p-5">
-          <h2 className="mb-4 font-bold">?? ??</h2>
+          <h2 className="mb-4 font-bold">{"포함 항목"}</h2>
           <div className="space-y-2">
             {OPTIONS.map((o) => (
               <label key={o.key} className="flex items-center gap-2 text-sm">
@@ -110,12 +110,12 @@ export function ProjectReport() {
           </div>
           <div className="mt-6 flex flex-col gap-3">
             <Button loading={generating} onClick={generatePdf}>
-              PDF ?? - ????
+              {"PDF 생성 · 미리보기"}
             </Button>
             <div className="flex gap-2">
               <input
                 className="flex-1 rounded-lg border border-border px-3 py-2 text-sm"
-                placeholder="??? ??"
+                placeholder={"이메일 주소"}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />
@@ -123,27 +123,27 @@ export function ProjectReport() {
                 variant="secondary"
                 onClick={() => {
                   if (!email.trim()) {
-                    toast.error('???? ??????')
+                    toast.error("이메일을 입력해주세요")
                     return
                   }
-                  toast.success(`${email}? ??? ?? ??? ??????? (??)`)
+                  toast.success(`${email}${"에 보고서 전송을 예약했습니다 (데모)"}`)
                 }}
               >
-                ??
+                {"전송"}
               </Button>
             </div>
           </div>
         </div>
         <div className="card p-5">
-          <h2 className="mb-4 font-bold">????</h2>
+          <h2 className="mb-4 font-bold">{"미리보기"}</h2>
           <h3 className="font-semibold text-accent">{project.title}</h3>
           {selected.includes('votes') && (
             <div className="mt-3">
-              <p className="text-sm font-medium">?? ??</p>
+              <p className="text-sm font-medium">{"투표 결과"}</p>
               <ul className="mt-1 space-y-1 text-sm text-ink-muted">
                 {items.map((i) => (
                   <li key={i.id}>
-                    {i.title}: {i.vote_count ?? 0}?
+                    {i.title}: {i.vote_count ?? 0}{"표"}
                   </li>
                 ))}
               </ul>
@@ -151,7 +151,7 @@ export function ProjectReport() {
           )}
           {selected.includes('ai') && analysis && (
             <div className="mt-3">
-              <p className="text-sm font-medium">AI ??</p>
+              <p className="text-sm font-medium">{"AI 분석"}</p>
               <p className="mt-1 line-clamp-4 text-sm text-ink-muted">{analysis.overall_summary}</p>
             </div>
           )}

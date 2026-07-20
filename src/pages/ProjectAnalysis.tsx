@@ -33,7 +33,7 @@ export function ProjectAnalysis() {
     const comments = localApi.getComments(project.id)
     const allPins = items.flatMap((item) => localApi.getPins(item.id))
     if (comments.length === 0 && allPins.length === 0) {
-      toast.error('??? ??? ????')
+      toast.error("분석할 데이터가 없습니다")
       return
     }
     setLoading(true)
@@ -54,9 +54,9 @@ export function ProjectAnalysis() {
       })
       const saved = localApi.saveAnalysis({ project_id: project.id, ...result })
       setAnalysis(saved)
-      toast.success('AI ??? ???????')
+      toast.success("AI 분석이 완료되었습니다")
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : '?? ??')
+      toast.error(err instanceof Error ? err.message : "분석 실패")
     } finally {
       setLoading(false)
     }
@@ -69,7 +69,7 @@ export function ProjectAnalysis() {
         actions={
           isAdmin ? (
             <Button size="sm" loading={loading} onClick={runAnalysis}>
-              {analysis ? '?? ??' : '?? ??'}
+              {analysis ? "재분석" : "분석 실행"}
             </Button>
           ) : null
         }
@@ -78,15 +78,15 @@ export function ProjectAnalysis() {
       <div className="p-6">
         {!analysis ? (
           <EmptyState
-            title="AI ??? ?? ???? ?????"
-            description="??? ?? ???? ???? ???-??-??? ???? ?????"
-            actionLabel={isAdmin ? '?? ??' : undefined}
+            title={"AI 분석을 아직 실행하지 않았습니다"}
+            description={"댓글·투표 데이터를 기반으로 키워드·감성·브랜드 적합도를 분석합니다"}
+            actionLabel={isAdmin ? "분석 실행" : undefined}
             onAction={isAdmin ? runAnalysis : undefined}
           />
         ) : (
           <div className="mx-auto max-w-4xl space-y-8">
             <section className="card p-5">
-              <h2 className="mb-4 text-lg font-bold">?? ???</h2>
+              <h2 className="mb-4 text-lg font-bold">{"주요 키워드"}</h2>
               <div className="space-y-2">
                 {analysis.keywords.map((k) => {
                   const max = Math.max(...analysis.keywords.map((x) => x.count), 1)
@@ -113,13 +113,13 @@ export function ProjectAnalysis() {
             </section>
 
             <section>
-              <h2 className="mb-4 text-lg font-bold">??? ?? ??</h2>
+              <h2 className="mb-4 text-lg font-bold">{"시안별 의견 요약"}</h2>
               <div className="grid gap-3 sm:grid-cols-2">
                 {items.map((item) => (
                   <div key={item.id} className="card p-4">
                     <h3 className="mb-2 font-semibold">{item.title}</h3>
                     <p className="text-sm leading-relaxed text-ink-muted">
-                      {analysis.item_summaries[item.id] ?? '?? ??'}
+                      {analysis.item_summaries[item.id] ?? "요약 없음"}
                     </p>
                   </div>
                 ))}
@@ -127,7 +127,7 @@ export function ProjectAnalysis() {
             </section>
 
             <section className="card p-5">
-              <h2 className="mb-4 text-lg font-bold">?? ??</h2>
+              <h2 className="mb-4 text-lg font-bold">{"감성 분석"}</h2>
               <div className="flex items-center gap-8">
                 <Donut
                   positive={analysis.sentiment.positive}
@@ -137,22 +137,22 @@ export function ProjectAnalysis() {
                 <div className="space-y-2 text-sm">
                   <p>
                     <span className="mr-2 inline-block h-3 w-3 rounded-full bg-accent" />
-                    ?? {analysis.sentiment.positive}%
+                    {"긍정"} {analysis.sentiment.positive}%
                   </p>
                   <p>
                     <span className="mr-2 inline-block h-3 w-3 rounded-full bg-ink-muted" />
-                    ?? {analysis.sentiment.neutral}%
+                    {"중립"} {analysis.sentiment.neutral}%
                   </p>
                   <p>
                     <span className="mr-2 inline-block h-3 w-3 rounded-full bg-danger" />
-                    ?? {analysis.sentiment.negative}%
+                    {"부정"} {analysis.sentiment.negative}%
                   </p>
                 </div>
               </div>
             </section>
 
             <section className="card p-5">
-              <h2 className="mb-4 text-lg font-bold">??? ???</h2>
+              <h2 className="mb-4 text-lg font-bold">{"브랜드 적합도"}</h2>
               <div className="space-y-3">
                 {items.map((item) => {
                   const score = analysis.brand_fit_scores[item.id] ?? 0
@@ -171,7 +171,7 @@ export function ProjectAnalysis() {
 
             <section>
               <button className="text-sm font-semibold text-accent" onClick={() => setExpanded(!expanded)}>
-                {expanded ? '?? ?? ??' : '?? ?? ???'}
+                {expanded ? "원문 근거 접기" : "원문 근거 펼치기"}
               </button>
               {expanded && (
                 <p className="card mt-3 p-4 text-sm leading-relaxed text-ink-muted">
