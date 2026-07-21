@@ -163,8 +163,17 @@ export function AppLayout() {
   const unread = unreadCount()
   const pendingApprovals = showApproval ? localApi.getPendingApprovals(user.id).length : 0
   const projectCount = user.workspace_id ? localApi.getProjects(user.workspace_id).length : 0
-  const planLimit = workspace?.plan === 'free' ? 5 : workspace?.plan === 'pro' ? 50 : 999
+  const plan = workspace?.plan ?? 'free'
+  const planCfg = localApi.getPlanLimit(plan)
+  const planLimit = planCfg.max_projects >= 9999 ? 999 : planCfg.max_projects
   const planRemain = Math.max(0, planLimit - projectCount)
+  const systemFlags = localApi.getSystemFlags()
+  const bannerNotice = localApi.getActiveBannerNotice()
+  const topBanner =
+    systemFlags.maintenance
+      ? systemFlags.maintenance_message || '시스템 점검 중입니다.'
+      : bannerNotice?.body ?? null
+  const topBannerTone = systemFlags.maintenance ? 'maintenance' : 'notice'
 
   const projectMatch = location.pathname.match(/^\/projects\/([^/]+)/)
   const projectId = projectMatch?.[1]
@@ -262,7 +271,19 @@ export function AppLayout() {
   )
 
   return (
-    <div className="flex min-h-screen bg-surface">
+    <div className="flex min-h-screen flex-col bg-surface">
+      {topBanner && (
+        <div
+          className={`px-4 py-2 text-center text-sm ${
+            topBannerTone === 'maintenance'
+              ? 'bg-danger text-white'
+              : 'bg-accent text-white'
+          }`}
+        >
+          {topBannerTone === 'maintenance' ? `점검: ${topBanner}` : topBanner}
+        </div>
+      )}
+      <div className="flex min-h-0 flex-1">
       {/* Desktop sidebar */}
       <aside className="sticky top-0 hidden h-screen w-[220px] shrink-0 flex-col border-r border-border bg-surface-raised lg:flex">
         {sidebarContent}
@@ -359,6 +380,7 @@ export function AppLayout() {
         <main className="flex-1 pb-[env(safe-area-inset-bottom,0px)]">
           <Outlet />
         </main>
+      </div>
       </div>
       <ToastContainer />
     </div>

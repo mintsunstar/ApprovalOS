@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AppLayout, AuthLayout } from '@/components/layout/AppLayout'
+import { AdminLayout, AdminProtected } from '@/components/layout/AdminLayout'
 import { useAuthStore } from '@/stores/authStore'
 import { Landing } from '@/pages/Landing'
 import { Login, Signup } from '@/pages/Login'
@@ -20,6 +21,14 @@ import { Account } from '@/pages/Account'
 import { WorkspaceSettings } from '@/pages/WorkspaceSettings'
 import { PublicVote } from '@/pages/PublicVote'
 import { InviteAccept } from '@/pages/InviteAccept'
+import { AdminLogin } from '@/pages/admin/AdminLogin'
+import { AdminDashboard } from '@/pages/admin/AdminDashboard'
+import { AdminWorkspaces, AdminWorkspaceDetail } from '@/pages/admin/AdminWorkspaces'
+import { AdminUsers, AdminUserDetail } from '@/pages/admin/AdminUsers'
+import { AdminPlans } from '@/pages/admin/AdminPlans'
+import { AdminNotices, AdminNoticeNew, AdminNoticeDetail } from '@/pages/admin/AdminNotices'
+import { AdminIncidents } from '@/pages/admin/AdminIncidents'
+import { AdminLogs } from '@/pages/admin/AdminLogs'
 import { ToastContainer } from '@/components/common/Toast'
 
 function Protected({ children }: { children: React.ReactNode }) {
@@ -49,6 +58,30 @@ export default function App() {
         </Route>
         <Route path="/vote/:token" element={<PublicVote />} />
         <Route path="/invite/:token" element={<InviteAccept />} />
+
+        <Route path="/admin/login" element={<AdminLogin />} />
+        <Route
+          path="/admin"
+          element={
+            <AdminProtected>
+              <AdminLayout />
+            </AdminProtected>
+          }
+        >
+          <Route index element={<Navigate to="dashboard" replace />} />
+          <Route path="dashboard" element={<AdminDashboard />} />
+          <Route path="workspaces" element={<AdminWorkspaces />} />
+          <Route path="workspaces/:id" element={<AdminWorkspaceDetail />} />
+          <Route path="users" element={<AdminUsers />} />
+          <Route path="users/:id" element={<AdminUserDetail />} />
+          <Route path="plans" element={<AdminPlans />} />
+          <Route path="notices" element={<AdminNotices />} />
+          <Route path="notices/new" element={<AdminNoticeNew />} />
+          <Route path="notices/:id" element={<AdminNoticeDetail />} />
+          <Route path="incidents" element={<AdminIncidents />} />
+          <Route path="logs" element={<AdminLogs />} />
+        </Route>
+
         <Route
           element={
             <Protected>

@@ -1,21 +1,33 @@
 import type {
   AIAnalysis,
+  AdminActionType,
+  AdminLog,
+  AdminUser,
   ApprovalAction,
   ApprovalLine,
   Comment,
   DesignItem,
+  Incident,
   Invitation,
   ItemVersion,
+  Notice,
   Notification,
   PinComment,
+  PlanLimitsMap,
+  PlanType,
   Project,
   ProjectMember,
+  SystemFlags,
   User,
   Vote,
   Workspace,
   NotificationPrefs,
 } from '@/types'
-import { DEFAULT_NOTIFICATION_PREFS } from '@/types'
+import {
+  DEFAULT_NOTIFICATION_PREFS,
+  DEFAULT_PLAN_LIMITS,
+  DEFAULT_SYSTEM_FLAGS,
+} from '@/types'
 import { putDataUrl } from '@/lib/fileStore'
 
 const STORAGE_KEY = 'approvalos_db_v1'
@@ -25,6 +37,13 @@ export const DEV_CREDENTIALS = {
   email: 'developer@approvalos.dev',
   password: 'developer',
   name: '개발자',
+} as const
+
+/** 플랫폼 운영자 계정 (WS admin과 분리) */
+export const OPS_CREDENTIALS = {
+  email: 'ops@approvalos.local',
+  password: 'operator',
+  name: '운영관리자',
 } as const
 
 export interface LocalDB {
@@ -44,6 +63,13 @@ export interface LocalDB {
   notifications: Notification[]
   project_members: ProjectMember[]
   session_user_id: string | null
+  admin_users: AdminUser[]
+  admin_session_id: string | null
+  admin_logs: AdminLog[]
+  notices: Notice[]
+  incidents: Incident[]
+  plan_limits: PlanLimitsMap
+  system_flags: SystemFlags
 }
 
 function uid(): string {
@@ -72,13 +98,44 @@ function emptyDB(): LocalDB {
     notifications: [],
     project_members: [],
     session_user_id: null,
+    admin_users: [],
+    admin_session_id: null,
+    admin_logs: [],
+    notices: [],
+    incidents: [],
+    plan_limits: { ...DEFAULT_PLAN_LIMITS },
+    system_flags: { ...DEFAULT_SYSTEM_FLAGS },
   }
+}
+
+function normalizeDB(db: LocalDB): LocalDB {
+  if (!db.admin_users) db.admin_users = []
+  if (db.admin_session_id === undefined) db.admin_session_id = null
+  if (!db.admin_logs) db.admin_logs = []
+  if (!db.notices) db.notices = []
+  if (!db.incidents) db.incidents = []
+  if (!db.plan_limits) db.plan_limits = { ...DEFAULT_PLAN_LIMITS }
+  else {
+    db.plan_limits = {
+      free: { ...DEFAULT_PLAN_LIMITS.free, ...db.plan_limits.free },
+      pro: { ...DEFAULT_PLAN_LIMITS.pro, ...db.plan_limits.pro },
+      enterprise: { ...DEFAULT_PLAN_LIMITS.enterprise, ...db.plan_limits.enterprise },
+    }
+  }
+  if (!db.system_flags) db.system_flags = { ...DEFAULT_SYSTEM_FLAGS }
+  for (const w of db.workspaces) {
+    if (!w.status) w.status = 'active'
+  }
+  for (const u of db.users) {
+    if (!u.status) u.status = 'active'
+  }
+  return db
 }
 
 export function loadDB(): LocalDB {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
-    if (raw) return JSON.parse(raw) as LocalDB
+    if (raw) return normalizeDB(JSON.parse(raw) as LocalDB)
   } catch {
     /* ignore */
   }
@@ -194,6 +251,7 @@ export const localApi = {
         name: `${name}의 워크스페이스`,
         logo_url: null,
         plan: 'free',
+        status: 'active',
         invite_token: uid().slice(0, 8),
         created_at: now(),
         updated_at: now(),
@@ -207,6 +265,7 @@ export const localApi = {
         title: null,
         workspace_id: workspace.id,
         role: 'admin',
+        status: 'active',
         notification_prefs: { ...DEFAULT_NOTIFICATION_PREFS },
         created_at: now(),
         updated_at: now(),
@@ -222,6 +281,14 @@ export const localApi = {
     const db = mutateDB((d) => {
       const user = d.users.find((u) => u.email === email)
       if (!user) throw new Error('가입하지 않은 이메일입니다')
+      if (user.status === 'suspended') throw new Error('정지된 계정입니다. 관리자에게 문의하세요.')
+      if (user.status === 'deleted') throw new Error('탈퇴한 계정입니다')
+      if (user.workspace_id) {
+        const ws = d.workspaces.find((w) => w.id === user.workspace_id)
+        if (ws?.status === 'suspended') {
+          throw new Error('워크스페이스가 정지되었습니다. 관리자에게 문의하세요.')
+        }
+      }
       d.session_user_id = user.id
     })
     return db.users.find((u) => u.email === email)!
@@ -952,6 +1019,7 @@ export const localApi = {
 
   seedDemoIfEmpty(): void {
     this.ensureDevAccount()
+    this.ensureOpsAccount()
   },
 
   /** 개발자 계정이 없으면 생성 (이미 있으면 그대로) */
@@ -966,6 +1034,7 @@ export const localApi = {
         name: '개발자 워크스페이스',
         logo_url: null,
         plan: 'free',
+        status: 'active',
         invite_token: uid().slice(0, 8),
         created_at: now(),
         updated_at: now(),
@@ -979,6 +1048,7 @@ export const localApi = {
         title: 'Developer',
         workspace_id: workspace.id,
         role: 'admin',
+        status: 'active',
         notification_prefs: { ...DEFAULT_NOTIFICATION_PREFS },
         created_at: now(),
         updated_at: now(),
@@ -997,6 +1067,387 @@ export const localApi = {
   updateNotificationPrefs(userId: string, prefs: NotificationPrefs): void {
     this.updateUser(userId, { notification_prefs: prefs })
   },
+
+  // ─── Platform Admin (super_admin / admin_users) ───
+
+  ensureOpsAccount(): AdminUser {
+    const db = loadDB()
+    const existing = db.admin_users.find((a) => a.email === OPS_CREDENTIALS.email)
+    if (existing) return existing
+    return mutateDB((d) => {
+      d.admin_users.push({
+        id: uid(),
+        email: OPS_CREDENTIALS.email,
+        name: OPS_CREDENTIALS.name,
+        password: OPS_CREDENTIALS.password,
+        failed_attempts: 0,
+        locked_until: null,
+        created_at: now(),
+      })
+    }).admin_users.find((a) => a.email === OPS_CREDENTIALS.email)!
+  },
+
+  getAdminSession(): AdminUser | null {
+    const db = loadDB()
+    if (!db.admin_session_id) return null
+    return db.admin_users.find((a) => a.id === db.admin_session_id) ?? null
+  },
+
+  adminLogin(email: string, password: string): AdminUser {
+    this.ensureOpsAccount()
+    const db = mutateDB((d) => {
+      const admin = d.admin_users.find((a) => a.email === email)
+      if (!admin) throw new Error('운영자 계정이 없습니다')
+      if (admin.locked_until && new Date(admin.locked_until) > new Date()) {
+        throw new Error('계정이 잠겼습니다. 잠시 후 다시 시도하세요.')
+      }
+      if (admin.password !== password) {
+        admin.failed_attempts += 1
+        if (admin.failed_attempts >= 5) {
+          admin.locked_until = new Date(Date.now() + 15 * 60 * 1000).toISOString()
+          admin.failed_attempts = 0
+          throw new Error('비밀번호 오류가 많아 15분간 잠겼습니다')
+        }
+        throw new Error('이메일 또는 비밀번호가 올바르지 않습니다')
+      }
+      admin.failed_attempts = 0
+      admin.locked_until = null
+      d.admin_session_id = admin.id
+      pushAdminLog(d, admin.id, 'login', null, null, '운영 콘솔 로그인')
+    })
+    return db.admin_users.find((a) => a.email === email)!
+  },
+
+  adminLogout(): void {
+    mutateDB((db) => {
+      if (db.admin_session_id) {
+        pushAdminLog(db, db.admin_session_id, 'logout', null, null, '운영 콘솔 로그아웃')
+      }
+      db.admin_session_id = null
+    })
+  },
+
+  getPlanLimits(): PlanLimitsMap {
+    return loadDB().plan_limits
+  },
+
+  getPlanLimit(plan: PlanType) {
+    return loadDB().plan_limits[plan] ?? DEFAULT_PLAN_LIMITS[plan]
+  },
+
+  updatePlanLimits(limits: PlanLimitsMap, adminId: string): PlanLimitsMap {
+    return mutateDB((db) => {
+      db.plan_limits = limits
+      pushAdminLog(db, adminId, 'plan_limits_update', 'plan_limits', null, '플랜 한도 수정')
+    }).plan_limits
+  },
+
+  getSystemFlags(): SystemFlags {
+    return loadDB().system_flags
+  },
+
+  setMaintenance(
+    enabled: boolean,
+    message: string,
+    until: string | null,
+    adminId: string
+  ): SystemFlags {
+    return mutateDB((db) => {
+      db.system_flags = {
+        maintenance: enabled,
+        maintenance_message: message,
+        maintenance_until: until,
+      }
+      pushAdminLog(
+        db,
+        adminId,
+        'maintenance_toggle',
+        'system',
+        null,
+        enabled ? `점검 모드 ON: ${message}` : '점검 모드 OFF'
+      )
+    }).system_flags
+  },
+
+  getAdminDashboardStats() {
+    const db = loadDB()
+    const activeWs = db.workspaces.filter((w) => w.status !== 'deleted')
+    const activeUsers = db.users.filter((u) => u.status !== 'deleted')
+    return {
+      workspace_count: activeWs.length,
+      user_count: activeUsers.length,
+      project_count: db.projects.length,
+      suspended_workspaces: db.workspaces.filter((w) => w.status === 'suspended').length,
+      suspended_users: db.users.filter((u) => u.status === 'suspended').length,
+      open_incidents: db.incidents.filter((i) => i.status !== 'resolved').length,
+      published_notices: db.notices.filter((n) => n.status === 'published').length,
+      maintenance: db.system_flags.maintenance,
+    }
+  },
+
+  listAdminWorkspaces() {
+    const db = loadDB()
+    return db.workspaces
+      .filter((w) => w.status !== 'deleted')
+      .map((w) => ({
+        ...w,
+        member_count: db.users.filter((u) => u.workspace_id === w.id && u.status !== 'deleted')
+          .length,
+        project_count: db.projects.filter((p) => p.workspace_id === w.id).length,
+      }))
+      .sort((a, b) => b.created_at.localeCompare(a.created_at))
+  },
+
+  getAdminWorkspace(id: string) {
+    const db = loadDB()
+    const w = db.workspaces.find((x) => x.id === id)
+    if (!w) return null
+    return {
+      ...w,
+      members: db.users.filter((u) => u.workspace_id === id && u.status !== 'deleted'),
+      projects: db.projects.filter((p) => p.workspace_id === id),
+    }
+  },
+
+  setWorkspaceStatus(
+    id: string,
+    status: 'active' | 'suspended',
+    adminId: string
+  ): Workspace {
+    return mutateDB((db) => {
+      const w = db.workspaces.find((x) => x.id === id)
+      if (!w) throw new Error('워크스페이스를 찾을 수 없습니다')
+      w.status = status
+      w.updated_at = now()
+      pushAdminLog(
+        db,
+        adminId,
+        status === 'suspended' ? 'workspace_suspend' : 'workspace_unsuspend',
+        'workspace',
+        id,
+        `${w.name} → ${status}`
+      )
+    }).workspaces.find((w) => w.id === id)!
+  },
+
+  setWorkspacePlan(id: string, plan: PlanType, adminId: string): Workspace {
+    return mutateDB((db) => {
+      const w = db.workspaces.find((x) => x.id === id)
+      if (!w) throw new Error('워크스페이스를 찾을 수 없습니다')
+      const prev = w.plan
+      w.plan = plan
+      w.updated_at = now()
+      pushAdminLog(
+        db,
+        adminId,
+        'workspace_plan_change',
+        'workspace',
+        id,
+        `${w.name}: ${prev} → ${plan}`
+      )
+    }).workspaces.find((w) => w.id === id)!
+  },
+
+  listAdminUsers() {
+    return loadDB()
+      .users.filter((u) => u.status !== 'deleted')
+      .sort((a, b) => b.created_at.localeCompare(a.created_at))
+  },
+
+  getAdminUser(id: string) {
+    return loadDB().users.find((u) => u.id === id) ?? null
+  },
+
+  setUserStatus(id: string, status: 'active' | 'suspended', adminId: string): User {
+    return mutateDB((db) => {
+      const u = db.users.find((x) => x.id === id)
+      if (!u) throw new Error('사용자를 찾을 수 없습니다')
+      u.status = status
+      u.updated_at = now()
+      if (status === 'suspended' && db.session_user_id === id) {
+        db.session_user_id = null
+      }
+      pushAdminLog(
+        db,
+        adminId,
+        status === 'suspended' ? 'user_suspend' : 'user_unsuspend',
+        'user',
+        id,
+        `${u.email} → ${status}`
+      )
+    }).users.find((u) => u.id === id)!
+  },
+
+  forceDeleteUser(id: string, adminId: string): void {
+    mutateDB((db) => {
+      const u = db.users.find((x) => x.id === id)
+      if (!u) throw new Error('사용자를 찾을 수 없습니다')
+      u.status = 'deleted'
+      u.workspace_id = null
+      u.updated_at = now()
+      if (db.session_user_id === id) db.session_user_id = null
+      db.project_members = db.project_members.filter((m) => m.user_id !== id)
+      pushAdminLog(db, adminId, 'user_force_delete', 'user', id, `${u.email} 강제 탈퇴`)
+    })
+  },
+
+  stubResetPassword(id: string, adminId: string): void {
+    mutateDB((db) => {
+      const u = db.users.find((x) => x.id === id)
+      if (!u) throw new Error('사용자를 찾을 수 없습니다')
+      pushAdminLog(
+        db,
+        adminId,
+        'user_reset_password',
+        'user',
+        id,
+        `${u.email} 비밀번호 초기화 (메일 stub)`
+      )
+    })
+  },
+
+  listNotices(): Notice[] {
+    return [...loadDB().notices].sort((a, b) => b.created_at.localeCompare(a.created_at))
+  },
+
+  getActiveBannerNotice(): Notice | null {
+    const nowIso = now()
+    return (
+      loadDB().notices.find((n) => {
+        if (n.status !== 'published' || n.type !== 'banner') return false
+        if (n.starts_at && n.starts_at > nowIso) return false
+        if (n.ends_at && n.ends_at < nowIso) return false
+        return true
+      }) ?? null
+    )
+  },
+
+  getNotice(id: string): Notice | null {
+    return loadDB().notices.find((n) => n.id === id) ?? null
+  },
+
+  createNotice(
+    data: {
+      title: string
+      body: string
+      type: Notice['type']
+      starts_at?: string | null
+      ends_at?: string | null
+    },
+    adminId: string
+  ): Notice {
+    let created: Notice | null = null
+    mutateDB((db) => {
+      created = {
+        id: uid(),
+        title: data.title,
+        body: data.body,
+        type: data.type,
+        status: 'draft',
+        starts_at: data.starts_at ?? null,
+        ends_at: data.ends_at ?? null,
+        created_by: adminId,
+        created_at: now(),
+        updated_at: now(),
+      }
+      db.notices.push(created)
+      pushAdminLog(db, adminId, 'notice_create', 'notice', created.id, data.title)
+    })
+    return created!
+  },
+
+  updateNotice(
+    id: string,
+    patch: Partial<Pick<Notice, 'title' | 'body' | 'type' | 'starts_at' | 'ends_at' | 'status'>>,
+    adminId: string
+  ): Notice {
+    return mutateDB((db) => {
+      const n = db.notices.find((x) => x.id === id)
+      if (!n) throw new Error('공지를 찾을 수 없습니다')
+      Object.assign(n, patch, { updated_at: now() })
+      if (patch.status === 'published') {
+        pushAdminLog(db, adminId, 'notice_publish', 'notice', id, n.title)
+      } else if (patch.status === 'archived') {
+        pushAdminLog(db, adminId, 'notice_archive', 'notice', id, n.title)
+      }
+    }).notices.find((n) => n.id === id)!
+  },
+
+  listIncidents(): Incident[] {
+    return [...loadDB().incidents].sort((a, b) => b.created_at.localeCompare(a.created_at))
+  },
+
+  createIncident(
+    data: {
+      title: string
+      summary: string
+      severity: Incident['severity']
+    },
+    adminId: string
+  ): Incident {
+    let created: Incident | null = null
+    mutateDB((db) => {
+      created = {
+        id: uid(),
+        title: data.title,
+        summary: data.summary,
+        severity: data.severity,
+        status: 'investigating',
+        started_at: now(),
+        resolved_at: null,
+        created_by: adminId,
+        created_at: now(),
+        updated_at: now(),
+      }
+      db.incidents.push(created)
+      pushAdminLog(db, adminId, 'incident_create', 'incident', created.id, data.title)
+    })
+    return created!
+  },
+
+  updateIncident(
+    id: string,
+    patch: Partial<Pick<Incident, 'title' | 'summary' | 'severity' | 'status'>>,
+    adminId: string
+  ): Incident {
+    return mutateDB((db) => {
+      const inc = db.incidents.find((x) => x.id === id)
+      if (!inc) throw new Error('점검을 찾을 수 없습니다')
+      Object.assign(inc, patch, { updated_at: now() })
+      if (patch.status === 'resolved') inc.resolved_at = now()
+      pushAdminLog(db, adminId, 'incident_update', 'incident', id, `${inc.title} → ${inc.status}`)
+    }).incidents.find((i) => i.id === id)!
+  },
+
+  listAdminLogs(limit = 100): AdminLog[] {
+    const db = loadDB()
+    return [...db.admin_logs]
+      .sort((a, b) => b.created_at.localeCompare(a.created_at))
+      .slice(0, limit)
+      .map((log) => ({
+        ...log,
+        admin: db.admin_users.find((a) => a.id === log.admin_user_id),
+      }))
+  },
+}
+
+function pushAdminLog(
+  db: LocalDB,
+  adminUserId: string,
+  action: AdminActionType,
+  targetType: string | null,
+  targetId: string | null,
+  detail: string
+): void {
+  db.admin_logs.push({
+    id: uid(),
+    admin_user_id: adminUserId,
+    action,
+    target_type: targetType,
+    target_id: targetId,
+    detail,
+    created_at: now(),
+  })
 }
 
 function enrichProject(p: Project): Project {

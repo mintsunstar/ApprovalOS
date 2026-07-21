@@ -16,12 +16,36 @@ export type NotificationType =
 export type Visibility = 'internal' | 'link'
 export type PlanType = 'free' | 'pro' | 'enterprise'
 export type ApprovalLineStatus = 'pending' | 'active' | 'completed' | 'rejected'
+export type AccountStatus = 'active' | 'suspended' | 'deleted'
+export type WorkspaceStatus = 'active' | 'suspended' | 'deleted'
+export type NoticeType = 'banner' | 'modal' | 'email'
+export type NoticeStatus = 'draft' | 'published' | 'archived'
+export type IncidentSeverity = 'info' | 'warning' | 'critical'
+export type IncidentStatus = 'investigating' | 'identified' | 'monitoring' | 'resolved'
+export type AdminActionType =
+  | 'login'
+  | 'logout'
+  | 'workspace_suspend'
+  | 'workspace_unsuspend'
+  | 'workspace_plan_change'
+  | 'user_suspend'
+  | 'user_unsuspend'
+  | 'user_force_delete'
+  | 'user_reset_password'
+  | 'plan_limits_update'
+  | 'notice_create'
+  | 'notice_publish'
+  | 'notice_archive'
+  | 'incident_create'
+  | 'incident_update'
+  | 'maintenance_toggle'
 
 export interface Workspace {
   id: string
   name: string
   logo_url: string | null
   plan: PlanType
+  status?: WorkspaceStatus
   invite_token: string
   created_at: string
   updated_at: string
@@ -36,9 +60,84 @@ export interface User {
   title: string | null
   workspace_id: string | null
   role: UserRole
+  status?: AccountStatus
   notification_prefs: NotificationPrefs
   created_at: string
   updated_at: string
+}
+
+export interface PlanLimit {
+  max_members: number
+  max_projects: number
+  storage_gb: number
+}
+
+export type PlanLimitsMap = Record<PlanType, PlanLimit>
+
+export interface AdminUser {
+  id: string
+  email: string
+  name: string
+  /** 데모용 평문 (실서비스에서는 해시) */
+  password: string
+  failed_attempts: number
+  locked_until: string | null
+  created_at: string
+}
+
+export interface Notice {
+  id: string
+  title: string
+  body: string
+  type: NoticeType
+  status: NoticeStatus
+  starts_at: string | null
+  ends_at: string | null
+  created_by: string
+  created_at: string
+  updated_at: string
+}
+
+export interface Incident {
+  id: string
+  title: string
+  summary: string
+  severity: IncidentSeverity
+  status: IncidentStatus
+  started_at: string
+  resolved_at: string | null
+  created_by: string
+  created_at: string
+  updated_at: string
+}
+
+export interface AdminLog {
+  id: string
+  admin_user_id: string
+  action: AdminActionType
+  target_type: string | null
+  target_id: string | null
+  detail: string
+  created_at: string
+  admin?: AdminUser
+}
+
+export interface SystemFlags {
+  maintenance: boolean
+  maintenance_message: string
+  maintenance_until: string | null
+}
+
+export const DEFAULT_PLAN_LIMITS: PlanLimitsMap = {
+  free: { max_members: 5, max_projects: 5, storage_gb: 1 },
+  pro: { max_members: 30, max_projects: 50, storage_gb: 50 },
+  enterprise: { max_members: 9999, max_projects: 9999, storage_gb: 9999 },
+}
+
+export const DEFAULT_SYSTEM_FLAGS: SystemFlags = {
+  maintenance: false,
+  maintenance_message: '',
+  maintenance_until: null,
 }
 
 export interface NotificationPrefs {

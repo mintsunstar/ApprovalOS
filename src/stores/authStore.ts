@@ -20,6 +20,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   init: () => {
     localApi.ensureDevAccount()
+    localApi.ensureOpsAccount()
     void import('@/lib/localDb').then(({ migrateBlobsToIndexedDb }) => {
       void migrateBlobsToIndexedDb()
     })
