@@ -296,8 +296,14 @@ export const localApi = {
     const db = mutateDB((d) => {
       const idx = d.projects.findIndex((p) => p.id === id)
       if (idx === -1) throw new Error('프로젝트를 찾을 수 없습니다')
-      d.projects[idx] = { ...d.projects[idx], ...patch, updated_at: now() }
+      const prev = d.projects[idx]
+      const closing = patch.status === 'closed' && prev.status !== 'closed'
+      d.projects[idx] = { ...prev, ...patch, updated_at: now() }
+      if (closing) {
+        notifyResultOpen(d, id)
+      }
     })
+    if (patch.status === 'closed') emitNotificationsChanged()
     return enrichProject(db.projects.find((p) => p.id === id)!)
   },
 
@@ -461,7 +467,20 @@ export const localApi = {
     }
     mutateDB((db) => {
       db.comments.push(comment)
+      const author = db.users.find((u) => u.id === data.user_id)
+      const snippet =
+        data.content.length > 50 ? `${data.content.slice(0, 50)}...` : data.content
+      notifyAdmins(
+        db,
+        data.project_id,
+        'new_comment',
+        '새 댓글이 등록되었습니다',
+        `${author?.name ?? '참여자'}: ${snippet}`,
+        `/projects/${data.project_id}/comments`,
+        data.user_id
+      )
     })
+    emitNotificationsChanged()
     return enrichComment(comment, loadDB())
   },
 
@@ -532,7 +551,18 @@ export const localApi = {
       }
       db.comments.push(comment)
       db.pin_comments.push(pin)
+      const author = db.users.find((u) => u.id === data.user_id)
+      notifyAdmins(
+        db,
+        data.project_id,
+        'new_pin',
+        '새 핀 댓글이 등록되었습니다',
+        `${author?.name ?? '참여자'}님이 시안에 핀을 추가했습니다.`,
+        `/projects/${data.project_id}/items/${data.item_id}`,
+        data.user_id
+      )
     })
+    emitNotificationsChanged()
     return this.getPins(data.item_id).find((p) => p.id === pin!.id)!
   },
 
@@ -553,7 +583,17 @@ export const localApi = {
       db.ai_analyses = db.ai_analyses.filter((a) => a.project_id !== analysis.project_id)
       saved = { ...analysis, id: uid(), created_at: now() }
       db.ai_analyses.push(saved)
+      const project = db.projects.find((p) => p.id === analysis.project_id)
+      notifyAdmins(
+        db,
+        analysis.project_id,
+        'analysis_done',
+        'AI 분석이 완료되었습니다',
+        `${project?.title ?? '프로젝트'}의 AI 분석 결과를 확인하세요.`,
+        `/projects/${analysis.project_id}/analysis`
+      )
     })
+    emitNotificationsChanged()
     return saved!
   },
 
@@ -600,8 +640,21 @@ export const localApi = {
         .filter((l) => l.project_id === projectId)
         .sort((a, b) => a.step_order - b.step_order)
       for (const line of lines) line.status = 'pending'
-      if (lines[0]) lines[0].status = 'active'
+      const first = lines[0]
+      if (first) {
+        first.status = 'active'
+        for (const approverId of first.approver_ids) {
+          pushNotification(db, {
+            userId: approverId,
+            type: 'approval_requested',
+            title: '승인 요청이 도착했습니다',
+            body: `${project.title} — ${first.step_name} 승인을 요청합니다.`,
+            link: approvalReviewLink(projectId),
+          })
+        }
+      }
     })
+    emitNotificationsChanged()
   },
 
   submitApprovalAction(data: {
@@ -638,7 +691,15 @@ export const localApi = {
           project.status = 'active'
           project.updated_at = now()
         }
-        notifyAdmins(db, line.project_id, 'rejected', '승인이 반려되었습니다', data.reject_reason ?? '')
+        notifyAdmins(
+          db,
+          line.project_id,
+          'rejected',
+          '승인이 반려되었습니다',
+          data.reject_reason ?? '',
+          approvalReviewLink(line.project_id),
+          data.user_id
+        )
         return
       }
 
@@ -657,28 +718,31 @@ export const localApi = {
           .find((l) => l.step_order > line.step_order && l.status === 'pending')
         if (next) {
           next.status = 'active'
+          const project = db.projects.find((p) => p.id === line.project_id)
           for (const approverId of next.approver_ids) {
-            db.notifications.push({
-              id: uid(),
-              user_id: approverId,
+            pushNotification(db, {
+              userId: approverId,
               type: 'approval_requested',
-              title: '승인 요청',
-              body: `${next.step_name} 승인 요청이 도착했습니다`,
-              link: `/projects/${line.project_id}/approval`,
-              is_read: false,
-              created_at: now(),
+              title: '승인 요청이 도착했습니다',
+              body: `${project?.title ?? '프로젝트'} — ${next.step_name} 승인을 요청합니다.`,
+              link: approvalReviewLink(line.project_id),
             })
           }
         } else {
-          const project = db.projects.find((p) => p.id === line.project_id)
-          if (project) {
-            project.status = 'closed'
-            project.updated_at = now()
-          }
-          notifyAdmins(db, line.project_id, 'approval_done', '최종 승인이 완료되었습니다', '')
+          closeProjectAndNotify(db, line.project_id)
+          notifyAdmins(
+            db,
+            line.project_id,
+            'approval_done',
+            '최종 승인이 완료되었습니다',
+            '',
+            approvalReviewLink(line.project_id),
+            data.user_id
+          )
         }
       }
     })
+    emitNotificationsChanged()
   },
 
   restartApproval(projectId: string): void {
@@ -740,17 +804,37 @@ export const localApi = {
     }
   },
 
+  getWorkspaceByInviteToken(token: string): Workspace | null {
+    return loadDB().workspaces.find((w) => w.invite_token === token) ?? null
+  },
+
+  joinWorkspaceByInviteToken(token: string, userId: string): Workspace {
+    return mutateDB((db) => {
+      const ws = db.workspaces.find((w) => w.invite_token === token)
+      if (!ws) throw new Error('초대 링크가 유효하지 않습니다')
+      const user = db.users.find((u) => u.id === userId)
+      if (!user) throw new Error('사용자를 찾을 수 없습니다')
+      user.workspace_id = ws.id
+      user.role = 'reviewer'
+      user.updated_at = now()
+    }).workspaces.find((w) => w.invite_token === token)!
+  },
+
   acceptInvitation(token: string, userId: string): void {
     mutateDB((db) => {
       const inv = db.invitations.find((i) => i.token === token)
       if (!inv) throw new Error('초대 링크가 유효하지 않습니다')
+      if (inv.accepted_at) throw new Error('이미 수락된 초대입니다')
       if (new Date(inv.expires_at) < new Date()) throw new Error('초대 링크가 만료되었습니다')
-      inv.accepted_at = now()
       const user = db.users.find((u) => u.id === userId)
-      if (user) {
-        user.workspace_id = inv.workspace_id
-        user.role = inv.role
+      if (!user) throw new Error('사용자를 찾을 수 없습니다')
+      if (inv.email && user.email.toLowerCase() !== inv.email.toLowerCase()) {
+        throw new Error('초대받은 이메일과 다른 계정입니다')
       }
+      inv.accepted_at = now()
+      user.workspace_id = inv.workspace_id
+      user.role = inv.role
+      user.updated_at = now()
       if (inv.project_id) {
         const exists = db.project_members.some(
           (m) => m.project_id === inv.project_id && m.user_id === userId
@@ -765,6 +849,68 @@ export const localApi = {
           })
         }
       }
+    })
+  },
+
+  /** invitations token 또는 workspace.invite_token */
+  acceptInviteToken(token: string, userId: string): { kind: 'invitation' | 'workspace'; projectId: string | null } {
+    const invitation = this.getInvitation(token)
+    if (invitation) {
+      this.acceptInvitation(token, userId)
+      return { kind: 'invitation', projectId: invitation.project_id }
+    }
+    const ws = this.getWorkspaceByInviteToken(token)
+    if (ws) {
+      this.joinWorkspaceByInviteToken(token, userId)
+      return { kind: 'workspace', projectId: null }
+    }
+    throw new Error('초대 링크가 유효하지 않습니다')
+  },
+
+  getPendingInvitations(workspaceId: string): Invitation[] {
+    const db = loadDB()
+    const nowMs = Date.now()
+    return db.invitations
+      .filter(
+        (i) =>
+          i.workspace_id === workspaceId &&
+          !i.accepted_at &&
+          new Date(i.expires_at).getTime() > nowMs
+      )
+      .map((inv) => ({
+        ...inv,
+        project: inv.project_id ? db.projects.find((p) => p.id === inv.project_id) : undefined,
+        inviter: db.users.find((u) => u.id === inv.invited_by),
+      }))
+      .sort((a, b) => b.created_at.localeCompare(a.created_at))
+  },
+
+  cancelInvitation(id: string): void {
+    mutateDB((db) => {
+      db.invitations = db.invitations.filter((i) => i.id !== id)
+    })
+  },
+
+  removeWorkspaceMember(userId: string, workspaceId: string): void {
+    mutateDB((db) => {
+      const user = db.users.find((u) => u.id === userId)
+      if (!user) throw new Error('사용자를 찾을 수 없습니다')
+      user.workspace_id = null
+      user.updated_at = now()
+      const wsProjectIds = db.projects
+        .filter((p) => p.workspace_id === workspaceId)
+        .map((p) => p.id)
+      db.project_members = db.project_members.filter(
+        (m) => !(m.user_id === userId && wsProjectIds.includes(m.project_id))
+      )
+      db.invitations = db.invitations.filter(
+        (i) =>
+          !(
+            i.workspace_id === workspaceId &&
+            !i.accepted_at &&
+            i.email.toLowerCase() === user.email.toLowerCase()
+          )
+      )
     })
   },
 
@@ -911,26 +1057,94 @@ function enrichComment(c: Comment, db: LocalDB): Comment {
   return { ...c, user, liked_by_me, replies }
 }
 
+function mergedPrefs(user: User): NotificationPrefs {
+  return { ...DEFAULT_NOTIFICATION_PREFS, ...user.notification_prefs }
+}
+
+function shouldNotify(user: User, type: Notification['type']): boolean {
+  const prefs = mergedPrefs(user)
+  return prefs[type] !== false
+}
+
+function emitNotificationsChanged(): void {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('approvalos:notifications-changed'))
+  }
+}
+
+function pushNotification(
+  db: LocalDB,
+  data: {
+    userId: string
+    type: Notification['type']
+    title: string
+    body: string
+    link: string | null
+  }
+): void {
+  const user = db.users.find((u) => u.id === data.userId)
+  if (!user || !shouldNotify(user, data.type)) return
+  db.notifications.push({
+    id: uid(),
+    user_id: data.userId,
+    type: data.type,
+    title: data.title,
+    body: data.body,
+    link: data.link,
+    is_read: false,
+    created_at: now(),
+  })
+}
+
 function notifyAdmins(
   db: LocalDB,
   projectId: string,
   type: Notification['type'],
   title: string,
-  body: string
+  body: string,
+  link?: string,
+  actorId?: string
 ): void {
   const project = db.projects.find((p) => p.id === projectId)
   if (!project) return
-  const admins = db.users.filter((u) => u.workspace_id === project.workspace_id && u.role === 'admin')
+  const admins = db.users.filter(
+    (u) => u.workspace_id === project.workspace_id && u.role === 'admin' && u.id !== actorId
+  )
+  const resolvedLink = link ?? `/projects/${projectId}`
   for (const admin of admins) {
-    db.notifications.push({
-      id: uid(),
-      user_id: admin.id,
+    pushNotification(db, {
+      userId: admin.id,
       type,
       title,
       body,
-      link: `/projects/${projectId}/approval`,
-      is_read: false,
-      created_at: now(),
+      link: resolvedLink,
     })
   }
+}
+
+function notifyResultOpen(db: LocalDB, projectId: string): void {
+  const project = db.projects.find((p) => p.id === projectId)
+  if (!project) return
+  const members = db.project_members.filter((m) => m.project_id === projectId)
+  for (const member of members) {
+    pushNotification(db, {
+      userId: member.user_id,
+      type: 'result_open',
+      title: '결과가 공개되었습니다',
+      body: `${project.title}의 결과를 확인하세요.`,
+      link: `/projects/${projectId}`,
+    })
+  }
+}
+
+function closeProjectAndNotify(db: LocalDB, projectId: string): void {
+  const project = db.projects.find((p) => p.id === projectId)
+  if (!project || project.status === 'closed') return
+  project.status = 'closed'
+  project.updated_at = now()
+  notifyResultOpen(db, projectId)
+}
+
+function approvalReviewLink(projectId: string): string {
+  return `/projects/${projectId}/approval/review`
 }

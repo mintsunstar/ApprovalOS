@@ -1,10 +1,10 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Button } from '@/components/common/Button'
 import { Input } from '@/components/common/Input'
 import { useAuthStore } from '@/stores/authStore'
 import { toast } from '@/stores/toastStore'
-import { DEV_CREDENTIALS } from '@/lib/localDb'
+import { DEV_CREDENTIALS, localApi } from '@/lib/localDb'
 
 export function Login() {
   const [email, setEmail] = useState<string>(DEV_CREDENTIALS.email)
@@ -15,7 +15,10 @@ export function Login() {
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({})
   const login = useAuthStore((s) => s.login)
   const loginAsDev = useAuthStore((s) => s.loginAsDev)
+  const refreshUser = useAuthStore((s) => s.refreshUser)
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const inviteToken = searchParams.get('invite')
 
   const validate = () => {
     const e: typeof errors = {}
@@ -25,14 +28,31 @@ export function Login() {
     return Object.keys(e).length === 0
   }
 
+  const afterAuth = (userId: string) => {
+    try {
+      if (inviteToken) {
+        const result = localApi.acceptInviteToken(inviteToken, userId)
+        refreshUser()
+        toast.success('로그인 · 초대 수락 완료')
+        navigate(result.projectId ? `/projects/${result.projectId}` : '/dashboard')
+        return
+      }
+      toast.success('로그인되었습니다')
+      navigate('/dashboard')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : '초대 수락 실패')
+      navigate('/dashboard')
+    }
+  }
+
   const handleSubmit = async (ev: React.FormEvent) => {
     ev.preventDefault()
     if (!validate()) return
     setLoading(true)
     try {
       await login(email, password)
-      toast.success('로그인되었습니다')
-      navigate('/dashboard')
+      const user = useAuthStore.getState().user
+      if (user) afterAuth(user.id)
     } catch (err) {
       toast.error(err instanceof Error ? err.message : '로그인에 실패했습니다')
     } finally {
@@ -44,8 +64,12 @@ export function Login() {
     setDevLoading(true)
     try {
       await loginAsDev()
-      toast.success('개발자 모드로 입장했습니다')
-      navigate('/dashboard')
+      const user = useAuthStore.getState().user
+      if (user) afterAuth(user.id)
+      else {
+        toast.success('개발자 모드로 입장했습니다')
+        navigate('/dashboard')
+      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : '개발자 로그인 실패')
     } finally {
@@ -56,6 +80,11 @@ export function Login() {
   return (
     <div className="rounded-2xl border border-border bg-surface-raised p-8 shadow-sm">
       <h1 className="mb-6 text-center text-xl font-semibold">로그인</h1>
+      {inviteToken && (
+        <p className="mb-4 rounded-lg bg-accent-soft px-3 py-2 text-center text-sm text-accent">
+          초대 링크로 로그인하면 워크스페이스에 참여합니다
+        </p>
+      )}
 
       <div className="mb-6 rounded-xl border border-accent/30 bg-accent-soft/60 p-4 text-sm">
         <p className="font-medium text-accent">개발자 모드</p>
@@ -108,7 +137,10 @@ export function Login() {
       </form>
       <p className="mt-6 text-center text-sm text-ink-muted">
         계정이 없으신가요?{' '}
-        <Link to="/signup" className="font-medium text-accent hover:underline">
+        <Link
+          to={inviteToken ? `/signup?invite=${inviteToken}` : '/signup'}
+          className="font-medium text-accent hover:underline"
+        >
           회원가입
         </Link>
       </p>
@@ -123,7 +155,10 @@ export function Signup() {
   const [loading, setLoading] = useState(false)
   const [errors, setErrors] = useState<{ email?: string; password?: string; name?: string }>({})
   const signup = useAuthStore((s) => s.signup)
+  const refreshUser = useAuthStore((s) => s.refreshUser)
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const inviteToken = searchParams.get('invite')
 
   const validate = () => {
     const e: typeof errors = {}
@@ -140,6 +175,20 @@ export function Signup() {
     setLoading(true)
     try {
       await signup(email, password, name.trim())
+      const user = useAuthStore.getState().user
+      if (user && inviteToken) {
+        try {
+          const result = localApi.acceptInviteToken(inviteToken, user.id)
+          refreshUser()
+          toast.success('회원가입 · 초대 수락 완료')
+          navigate(result.projectId ? `/projects/${result.projectId}` : '/dashboard')
+          return
+        } catch (err) {
+          toast.error(err instanceof Error ? err.message : '초대 수락 실패')
+          navigate('/dashboard')
+          return
+        }
+      }
       toast.success('회원가입이 완료되었습니다')
       navigate('/dashboard')
     } catch (err) {
@@ -152,6 +201,11 @@ export function Signup() {
   return (
     <div className="rounded-2xl border border-border bg-surface-raised p-8 shadow-sm">
       <h1 className="mb-6 text-center text-xl font-semibold">회원가입</h1>
+      {inviteToken && (
+        <p className="mb-4 rounded-lg bg-accent-soft px-3 py-2 text-center text-sm text-accent">
+          초대 링크로 가입하면 해당 워크스페이스에 참여합니다
+        </p>
+      )}
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <Input label="이름" value={name} onChange={(e) => setName(e.target.value)} error={errors.name} />
         <Input
@@ -175,7 +229,10 @@ export function Signup() {
       </form>
       <p className="mt-6 text-center text-sm text-ink-muted">
         이미 계정이 있으신가요?{' '}
-        <Link to="/login" className="font-medium text-accent hover:underline">
+        <Link
+          to={inviteToken ? `/login?invite=${inviteToken}` : '/login'}
+          className="font-medium text-accent hover:underline"
+        >
           로그인
         </Link>
       </p>

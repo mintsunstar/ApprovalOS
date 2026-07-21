@@ -13,9 +13,10 @@ export function Account() {
   const [name, setName] = useState(user?.name ?? '')
   const [company, setCompany] = useState(user?.company ?? '')
   const [title, setTitle] = useState(user?.title ?? '')
-  const [prefs, setPrefs] = useState<NotificationPrefs>(
-    user?.notification_prefs ?? DEFAULT_NOTIFICATION_PREFS
-  )
+  const [prefs, setPrefs] = useState<NotificationPrefs>({
+    ...DEFAULT_NOTIFICATION_PREFS,
+    ...user?.notification_prefs,
+  })
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState('')
 
@@ -66,7 +67,10 @@ export function Account() {
             ['deadline_soon', '투표 마감 임박'],
             ['new_comment', '새 댓글'],
             ['new_pin', '새 핀 댓글'],
+            ['result_open', '결과 공개'],
+            ['analysis_done', 'AI 분석 완료'],
             ['approval_requested', '승인 요청'],
+            ['approval_done', '최종 승인 완료'],
             ['rejected', '반려 발생'],
           ] as const
         ).map(([key, label]) => (

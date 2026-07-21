@@ -31,6 +31,8 @@ export function ProjectNew() {
   ])
   const [inviteEmails, setInviteEmails] = useState('')
   const [inviteRole, setInviteRole] = useState<UserRole>('reviewer')
+  const [createdInviteUrls, setCreatedInviteUrls] = useState<string[]>([])
+  const [createdProjectId, setCreatedProjectId] = useState<string | null>(null)
 
   const members = user?.workspace_id ? localApi.getWorkspaceMembers(user.workspace_id) : []
 
@@ -93,8 +95,9 @@ export function ProjectNew() {
         .split(/[,;\s]+/)
         .map((e) => e.trim())
         .filter(Boolean)
+      const urls: string[] = []
       for (const email of emails) {
-        localApi.createInvitation({
+        const inv = localApi.createInvitation({
           project_id: project.id,
           workspace_id: user.workspace_id,
           email,
@@ -102,10 +105,17 @@ export function ProjectNew() {
           invited_by: user.id,
           expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
         })
+        urls.push(`${window.location.origin}/invite/${inv.token}`)
       }
 
-      toast.success(asDraft ? '임시저장되었습니다' : '프로젝트가 생성되었습니다')
-      navigate(`/projects/${project.id}`)
+      if (urls.length > 0) {
+        setCreatedInviteUrls(urls)
+        setCreatedProjectId(project.id)
+        toast.success(asDraft ? '임시저장되었습니다' : '프로젝트가 생성되었습니다')
+      } else {
+        toast.success(asDraft ? '임시저장되었습니다' : '프로젝트가 생성되었습니다')
+        navigate(`/projects/${project.id}`)
+      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : '생성 실패')
     } finally {
@@ -114,6 +124,41 @@ export function ProjectNew() {
   }
 
   const totalSteps = useApproval ? 4 : 3
+
+  if (createdProjectId && createdInviteUrls.length > 0) {
+    return (
+      <div className="mx-auto max-w-2xl px-4 py-8">
+        <h1 className="mb-2 text-2xl font-semibold">프로젝트가 생성되었습니다</h1>
+        <p className="mb-6 text-sm text-ink-muted">
+          아래 초대 링크를 참여자에게 공유하세요. (이메일 발송은 데모에서 지원하지 않습니다)
+        </p>
+        <div className="space-y-3 rounded-xl border border-border bg-surface-raised p-5">
+          {createdInviteUrls.map((url) => (
+            <div key={url} className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <input
+                readOnly
+                value={url}
+                className="min-w-0 flex-1 rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+              />
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => {
+                  navigator.clipboard.writeText(url)
+                  toast.success('복사됨')
+                }}
+              >
+                복사
+              </Button>
+            </div>
+          ))}
+        </div>
+        <Button className="mt-6" onClick={() => navigate(`/projects/${createdProjectId}`)}>
+          프로젝트로 이동
+        </Button>
+      </div>
+    )
+  }
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-8">

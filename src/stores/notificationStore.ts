@@ -5,6 +5,7 @@ import { localApi } from '@/lib/localDb'
 interface NotificationState {
   notifications: Notification[]
   load: (userId: string) => void
+  refreshSession: () => void
   markRead: (id: string) => void
   markAllRead: (userId: string) => void
   unreadCount: () => number
@@ -15,6 +16,11 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
 
   load: (userId) => {
     set({ notifications: localApi.getNotifications(userId) })
+  },
+
+  refreshSession: () => {
+    const user = localApi.getSessionUser()
+    if (user) set({ notifications: localApi.getNotifications(user.id) })
   },
 
   markRead: (id) => {

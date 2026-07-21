@@ -45,7 +45,10 @@ export interface NotificationPrefs {
   deadline_soon: boolean
   new_comment: boolean
   new_pin: boolean
+  result_open: boolean
+  analysis_done: boolean
   approval_requested: boolean
+  approval_done: boolean
   rejected: boolean
 }
 
@@ -247,7 +250,10 @@ export const DEFAULT_NOTIFICATION_PREFS: NotificationPrefs = {
   deadline_soon: true,
   new_comment: true,
   new_pin: false,
+  result_open: true,
+  analysis_done: true,
   approval_requested: true,
+  approval_done: true,
   rejected: true,
 }
 

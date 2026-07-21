@@ -15,6 +15,9 @@ export function WorkspaceSettings() {
   const [members, setMembers] = useState(() =>
     user?.workspace_id ? localApi.getWorkspaceMembers(user.workspace_id) : []
   )
+  const [pendingInvites, setPendingInvites] = useState(() =>
+    user?.workspace_id ? localApi.getPendingInvitations(user.workspace_id) : []
+  )
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [deleteName, setDeleteName] = useState('')
 
@@ -27,6 +30,10 @@ export function WorkspaceSettings() {
 
   const refreshMembers = () => {
     setMembers(localApi.getWorkspaceMembers(workspace.id))
+  }
+
+  const refreshPending = () => {
+    setPendingInvites(localApi.getPendingInvitations(workspace.id))
   }
 
   return (
@@ -111,8 +118,9 @@ export function WorkspaceSettings() {
                     return
                   }
                   if (confirm(`${m.name}님을 삭제하시겠습니까?`)) {
-                    localApi.updateUser(m.id, { workspace_id: null })
+                    localApi.removeWorkspaceMember(m.id, workspace.id)
                     refreshMembers()
+                    refreshPending()
                     toast.success('삭제되었습니다')
                   }
                 }}
@@ -122,6 +130,52 @@ export function WorkspaceSettings() {
             </li>
           ))}
         </ul>
+      </section>
+
+      <section className="mb-8 rounded-xl border border-border bg-surface-raised p-5">
+        <h2 className="mb-4 font-medium">대기 중인 초대</h2>
+        {pendingInvites.length === 0 ? (
+          <p className="text-sm text-ink-muted">대기 중인 초대가 없습니다</p>
+        ) : (
+          <ul className="space-y-3">
+            {pendingInvites.map((inv) => (
+              <li key={inv.id} className="flex flex-wrap items-center gap-3 text-sm">
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium">{inv.email}</p>
+                  <p className="text-xs text-ink-muted">
+                    {ROLE_LABELS[inv.role]}
+                    {inv.project ? ` · ${inv.project.title}` : ''}
+                    {' · '}
+                    {new Date(inv.created_at).toLocaleDateString()}
+                  </p>
+                </div>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => {
+                    navigator.clipboard.writeText(
+                      `${window.location.origin}/invite/${inv.token}`
+                    )
+                    toast.success('초대 링크 복사됨')
+                  }}
+                >
+                  링크
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    localApi.cancelInvitation(inv.id)
+                    refreshPending()
+                    toast.success('초대가 취소되었습니다')
+                  }}
+                >
+                  취소
+                </Button>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
 
       <section className="mb-8 rounded-xl border border-border bg-surface-raised p-5">

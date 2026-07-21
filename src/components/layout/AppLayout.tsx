@@ -62,10 +62,12 @@ function IconMenu({ className = '' }: { className?: string }) {
 
 function SidebarNav({
   showApproval,
+  pendingApprovals,
   navClass,
   onNavigate,
 }: {
   showApproval: boolean
+  pendingApprovals: number
   navClass: ({ isActive }: { isActive: boolean }) => string
   onNavigate?: () => void
 }) {
@@ -85,7 +87,13 @@ function SidebarNav({
       </NavLink>
       {showApproval && (
         <NavLink to="/approval" className={navClass} onClick={onNavigate}>
-          <IconCheck /> 승인 센터
+          <IconCheck />
+          <span className="flex-1">승인 센터</span>
+          {pendingApprovals > 0 && (
+            <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-danger px-1.5 text-[10px] font-semibold text-white">
+              {pendingApprovals > 99 ? '99+' : pendingApprovals}
+            </span>
+          )}
         </NavLink>
       )}
 
@@ -117,6 +125,14 @@ export function AppLayout() {
   }, [user, load])
 
   useEffect(() => {
+    const onChanged = () => {
+      useNotificationStore.getState().refreshSession()
+    }
+    window.addEventListener('approvalos:notifications-changed', onChanged)
+    return () => window.removeEventListener('approvalos:notifications-changed', onChanged)
+  }, [])
+
+  useEffect(() => {
     setMenuOpen(false)
     setNotifOpen(false)
   }, [location.pathname])
@@ -144,6 +160,10 @@ export function AppLayout() {
   const workspace = user.workspace_id ? localApi.getWorkspace(user.workspace_id) : null
   const showApproval = user.role === 'approver' || user.role === 'admin'
   const unread = unreadCount()
+  const pendingApprovals = showApproval ? localApi.getPendingApprovals(user.id).length : 0
+  const projectCount = user.workspace_id ? localApi.getProjects(user.workspace_id).length : 0
+  const planLimit = workspace?.plan === 'free' ? 5 : workspace?.plan === 'pro' ? 50 : 999
+  const planRemain = Math.max(0, planLimit - projectCount)
 
   const navClass = ({ isActive }: { isActive: boolean }) =>
     `flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition ${
@@ -163,7 +183,44 @@ export function AppLayout() {
         </Link>
       </div>
 
-      <SidebarNav showApproval={showApproval} navClass={navClass} onNavigate={() => setMenuOpen(false)} />
+      <SidebarNav
+        showApproval={showApproval}
+        pendingApprovals={pendingApprovals}
+        navClass={navClass}
+        onNavigate={() => setMenuOpen(false)}
+      />
+
+      <div className="mx-3 mb-3 rounded-xl border border-border bg-surface p-3">
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-xs font-semibold text-ink">
+            플랜: {(workspace?.plan ?? 'free').toUpperCase()}
+          </p>
+        </div>
+        <p className="mt-2 text-[11px] text-ink-muted">남은 프로젝트</p>
+        <div className="mt-1 flex items-center justify-between text-xs font-medium text-ink">
+          <span>
+            {planRemain}/{planLimit === 999 ? '∞' : planLimit}
+          </span>
+        </div>
+        <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-border">
+          <div
+            className="h-full rounded-full bg-accent transition-all"
+            style={{
+              width: `${planLimit === 999 ? 8 : Math.min(100, (projectCount / planLimit) * 100)}%`,
+            }}
+          />
+        </div>
+        <button
+          type="button"
+          className="mt-3 w-full rounded-lg border border-border bg-surface-raised py-1.5 text-xs font-medium text-ink-muted hover:border-accent/30 hover:text-accent"
+          onClick={() => {
+            setMenuOpen(false)
+            navigate('/workspace/settings')
+          }}
+        >
+          플랜 관리
+        </button>
+      </div>
 
       <div className="border-t border-border p-3">
         <div className="mb-2 flex items-center gap-2 rounded-xl px-2 py-2">
