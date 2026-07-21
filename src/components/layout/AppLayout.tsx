@@ -4,6 +4,7 @@ import { useAuthStore } from '@/stores/authStore'
 import { useNotificationStore } from '@/stores/notificationStore'
 import { ToastContainer } from '@/components/common/Toast'
 import { localApi } from '@/lib/localDb'
+import { getProjectPageLabel } from '@/components/layout/ProjectLayout'
 
 function IconHome({ className = '' }: { className?: string }) {
   return (
@@ -165,6 +166,21 @@ export function AppLayout() {
   const planLimit = workspace?.plan === 'free' ? 5 : workspace?.plan === 'pro' ? 50 : 999
   const planRemain = Math.max(0, planLimit - projectCount)
 
+  const projectMatch = location.pathname.match(/^\/projects\/([^/]+)/)
+  const projectId = projectMatch?.[1]
+  const onProjectPage = Boolean(projectId && projectId !== 'new')
+  const topBarSection = onProjectPage
+    ? getProjectPageLabel(location.pathname, projectId!)
+    : location.pathname.startsWith('/approval')
+      ? '승인 센터'
+      : location.pathname.startsWith('/account')
+        ? '계정 설정'
+        : location.pathname.startsWith('/workspace')
+          ? '멤버 · 설정'
+          : location.pathname.startsWith('/projects/new')
+            ? '새 프로젝트'
+            : '대시보드'
+
   const navClass = ({ isActive }: { isActive: boolean }) =>
     `flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition ${
       isActive
@@ -286,7 +302,7 @@ export function AppLayout() {
                 <>
                   <span className="font-medium text-ink">{workspace.name}</span>
                   <span className="mx-2 text-border">|</span>
-                  <span>디자인 리뷰 · 승인 플랫폼</span>
+                  <span>{topBarSection}</span>
                 </>
               ) : (
                 'ApprovalOS'

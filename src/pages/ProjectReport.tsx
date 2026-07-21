@@ -195,25 +195,20 @@ export function ProjectReport() {
         {/* Header */}
         <header className="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
+            <p className="mb-1 text-xs text-ink-muted sm:text-sm">
+              <Link to={`/projects/${project.id}`} className="hover:text-accent hover:underline">
+                {project.title}
+              </Link>
+              {workspace?.name ? ` · ${workspace.name}` : ''}
+            </p>
             <div className="mb-2 flex flex-wrap items-center gap-2">
               <h1 className="text-2xl font-bold tracking-tight text-ink sm:text-[1.75rem]">
-                검토 보고서
+                보고서
               </h1>
               <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600">
                 {statusText}
               </span>
             </div>
-            <nav className="flex flex-wrap items-center gap-1.5 text-xs text-ink-muted sm:text-sm">
-              <span>{workspace?.name ?? '워크스페이스'}</span>
-              <span className="text-border">›</span>
-              <span>디자인 리뷰</span>
-              <span className="text-border">›</span>
-              <span>승인 플랫폼</span>
-              <span className="text-border">›</span>
-              <Link to={`/projects/${project.id}`} className="text-accent hover:underline">
-                {project.title}
-              </Link>
-            </nav>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button variant="secondary" loading={generating} onClick={downloadPdf}>
