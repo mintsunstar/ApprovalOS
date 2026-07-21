@@ -272,12 +272,14 @@ export const localApi = {
   },
 
   createProject(data: Omit<Project, 'id' | 'created_at' | 'updated_at' | 'public_token'>): Project {
+    const createdAt = now()
     const project: Project = {
       ...data,
       id: uid(),
+      start_date: data.start_date ?? createdAt,
       public_token: data.visibility === 'link' ? uid().slice(0, 12) : null,
-      created_at: now(),
-      updated_at: now(),
+      created_at: createdAt,
+      updated_at: createdAt,
     }
     mutateDB((db) => {
       db.projects.push(project)
@@ -286,7 +288,7 @@ export const localApi = {
         project_id: project.id,
         user_id: data.created_by,
         role: 'admin',
-        created_at: now(),
+        created_at: createdAt,
       })
     })
     return enrichProject(project)
@@ -458,8 +460,11 @@ export const localApi = {
   },
 
   createComment(data: Omit<Comment, 'id' | 'like_count' | 'created_at' | 'updated_at'>): Comment {
+    const imageUrls = data.image_urls?.filter(Boolean) ?? []
     const comment: Comment = {
       ...data,
+      content: data.content ?? '',
+      image_urls: imageUrls,
       id: uid(),
       like_count: 0,
       created_at: now(),
@@ -468,8 +473,13 @@ export const localApi = {
     mutateDB((db) => {
       db.comments.push(comment)
       const author = db.users.find((u) => u.id === data.user_id)
-      const snippet =
-        data.content.length > 50 ? `${data.content.slice(0, 50)}...` : data.content
+      const snippet = data.content.trim()
+        ? data.content.length > 50
+          ? `${data.content.slice(0, 50)}...`
+          : data.content
+        : imageUrls.length > 0
+          ? `(이미지 ${imageUrls.length}장)`
+          : '(내용 없음)'
       notifyAdmins(
         db,
         data.project_id,
