@@ -59,6 +59,7 @@ export interface Project {
   description: string | null
   status: ProjectStatus
   vote_type: VoteType
+  start_date?: string | null
   deadline: string
   visibility: Visibility
   public_token: string | null
@@ -127,6 +128,7 @@ export interface Comment {
   item_ids: string[]
   parent_id: string | null
   like_count: number
+  image_urls?: string[]
   created_at: string
   updated_at: string
   // joined

@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Button } from '@/components/common/Button'
-import { Input, Select } from '@/components/common/Input'
+import { Select } from '@/components/common/Input'
+import { DateRangeCalendar } from '@/components/common/DateRangeCalendar'
 import { ConfirmDialog } from '@/components/common/Modal'
 import { ProjectLNB } from '@/components/layout/ProjectLayout'
 import { useAuthStore } from '@/stores/authStore'
@@ -61,6 +62,7 @@ export function ProjectSettings() {
   const [tab, setTab] = useState<SettingsTab>('info')
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
+  const [startDate, setStartDate] = useState<string | null>(null)
   const [deadline, setDeadline] = useState('')
   const [voteType, setVoteType] = useState<VoteType>('combined')
   const [visibility, setVisibility] = useState<'internal' | 'link'>('internal')
@@ -83,6 +85,9 @@ export function ProjectSettings() {
     if (!currentProject) return
     setTitle(currentProject.title)
     setDescription(currentProject.description ?? '')
+    setStartDate(
+      currentProject.start_date?.slice(0, 10) ?? currentProject.created_at.slice(0, 10)
+    )
     setDeadline(currentProject.deadline.slice(0, 10))
     setVoteType(currentProject.vote_type)
     setVisibility(currentProject.visibility)
@@ -135,7 +140,8 @@ export function ProjectSettings() {
     localApi.updateProject(project.id, {
       title: title.trim().slice(0, 100),
       description: description.trim().slice(0, 300) || null,
-      deadline: new Date(deadline).toISOString(),
+      start_date: startDate ? new Date(startDate).toISOString() : null,
+      deadline: new Date(`${deadline}T23:59:59`).toISOString(),
       vote_type: voteType,
       visibility,
       public_token:
@@ -303,15 +309,20 @@ export function ProjectSettings() {
 
               {/* Right */}
               <div className="space-y-4">
-                <Input
-                  label="마감일"
-                  type="date"
-                  value={deadline}
-                  onChange={(e) => {
-                    setDeadline(e.target.value)
-                    markDirty()
-                  }}
-                />
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium text-ink">
+                    진행 기간 (시작일 · 마감일)
+                  </label>
+                  <DateRangeCalendar
+                    start={startDate}
+                    end={deadline || null}
+                    onChange={(s, e) => {
+                      setStartDate(s)
+                      setDeadline(e ?? '')
+                      markDirty()
+                    }}
+                  />
+                </div>
                 <Select
                   label="투표 방식"
                   value={voteType}

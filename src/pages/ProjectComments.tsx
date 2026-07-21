@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { formatDistanceToNow } from 'date-fns'
 import { ko } from 'date-fns/locale'
@@ -8,6 +8,8 @@ import { ProjectLNB, ProjectHeader } from '@/components/layout/ProjectLayout'
 import { useAuthStore } from '@/stores/authStore'
 import { useProjectStore } from '@/stores/projectStore'
 import { localApi } from '@/lib/localDb'
+import { fileToStoredRef } from '@/lib/fileStore'
+import { StoredImage } from '@/components/common/StoredImage'
 import { toast } from '@/stores/toastStore'
 import type { Comment, PinComment } from '@/types'
 import { DEFAULT_NOTIFICATION_PREFS } from '@/types'
@@ -55,6 +57,9 @@ export function ProjectComments() {
   const [filterItem, setFilterItem] = useState<string>('all')
   const [replyTo, setReplyTo] = useState<string | null>(null)
   const [replyContent, setReplyContent] = useState('')
+  const [attachedImages, setAttachedImages] = useState<string[]>([])
+  const [uploading, setUploading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const refresh = () => {
     if (!id) return
@@ -174,7 +179,8 @@ export function ProjectComments() {
   const notifyOn = prefs.new_comment
 
   const submitComment = (parentId: string | null, text: string) => {
-    if (!text.trim()) {
+    const hasImages = !parentId && attachedImages.length > 0
+    if (!text.trim() && !hasImages) {
       toast.error('댓글 내용을 입력해주세요')
       return
     }
@@ -185,13 +191,45 @@ export function ProjectComments() {
       type: 'general',
       item_ids: parentId ? [] : taggedItems,
       parent_id: parentId,
+      image_urls: hasImages ? attachedImages : undefined,
     })
     toast.success('댓글이 등록되었습니다')
     setContent('')
     setReplyContent('')
     setReplyTo(null)
     setTaggedItems([])
+    setAttachedImages([])
     refresh()
+  }
+
+  const pickImages = () => fileInputRef.current?.click()
+
+  const onFilesSelected = async (files: FileList | null) => {
+    if (!files || files.length === 0) return
+    const images = Array.from(files).filter((f) => f.type.startsWith('image/'))
+    if (images.length === 0) {
+      toast.error('이미지 파일만 첨부할 수 있습니다')
+      return
+    }
+    const remain = 4 - attachedImages.length
+    if (remain <= 0) {
+      toast.error('이미지는 최대 4장까지 첨부할 수 있습니다')
+      return
+    }
+    setUploading(true)
+    try {
+      const refs: string[] = []
+      for (const file of images.slice(0, remain)) {
+        refs.push(await fileToStoredRef(file))
+      }
+      setAttachedImages((prev) => [...prev, ...refs])
+      if (images.length > remain) toast.warning('이미지는 최대 4장까지 첨부됩니다')
+    } catch {
+      toast.error('이미지 첨부에 실패했습니다')
+    } finally {
+      setUploading(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
   }
 
   const toggleNotify = () => {
@@ -268,12 +306,56 @@ export function ProjectComments() {
                     rows={3}
                     className="w-full resize-none rounded-xl border border-border bg-surface px-3 py-2.5 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent/20"
                   />
+                  {attachedImages.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {attachedImages.map((ref, idx) => (
+                        <div key={ref} className="relative">
+                          <StoredImage
+                            fileRef={ref}
+                            alt={`첨부 이미지 ${idx + 1}`}
+                            className="h-16 w-16 rounded-lg border border-border object-cover"
+                          />
+                          <button
+                            type="button"
+                            aria-label="이미지 제거"
+                            className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-ink text-[10px] text-white hover:bg-danger"
+                            onClick={() =>
+                              setAttachedImages((prev) => prev.filter((r) => r !== ref))
+                            }
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    className="hidden"
+                    onChange={(e) => onFilesSelected(e.target.files)}
+                  />
                   <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="flex gap-1 text-ink-muted" title="데모에서는 미지원">
-                        <ToolbarIcon kind="image" />
-                        <ToolbarIcon kind="mention" />
-                        <ToolbarIcon kind="emoji" />
+                      <span className="flex gap-1 text-ink-muted">
+                        <button
+                          type="button"
+                          title="이미지 첨부"
+                          aria-label="이미지 첨부"
+                          disabled={uploading}
+                          className="disabled:opacity-50"
+                          onClick={pickImages}
+                        >
+                          <ToolbarIcon kind="image" />
+                        </button>
+                        <span title="데모에서는 미지원" className="opacity-50">
+                          <ToolbarIcon kind="mention" />
+                        </span>
+                        <span title="데모에서는 미지원" className="opacity-50">
+                          <ToolbarIcon kind="emoji" />
+                        </span>
                       </span>
                       <div className="flex flex-wrap gap-1.5">
                         {items.map((item) => {
@@ -301,7 +383,7 @@ export function ProjectComments() {
                         })}
                       </div>
                     </div>
-                    <Button size="sm" onClick={() => submitComment(null, content)}>
+                    <Button size="sm" loading={uploading} onClick={() => submitComment(null, content)}>
                       댓글 등록
                     </Button>
                   </div>
@@ -537,7 +619,22 @@ function CommentCard({
         </div>
       </div>
 
-      <p className="text-sm leading-relaxed text-ink">{comment.content}</p>
+      {comment.content && (
+        <p className="text-sm leading-relaxed text-ink">{comment.content}</p>
+      )}
+
+      {comment.image_urls && comment.image_urls.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-2">
+          {comment.image_urls.map((ref, idx) => (
+            <StoredImage
+              key={ref}
+              fileRef={ref}
+              alt={`첨부 이미지 ${idx + 1}`}
+              className="h-28 w-28 rounded-lg border border-border object-cover sm:h-32 sm:w-32"
+            />
+          ))}
+        </div>
+      )}
 
       {comment.item_ids.length > 0 && (
         <div className="mt-2 flex flex-wrap gap-1.5">
