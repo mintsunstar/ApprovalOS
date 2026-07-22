@@ -1,4 +1,5 @@
 import type { KeywordResult, SentimentResult } from '@/types'
+import { isSupabaseConfigured, supabase } from '@/lib/supabase'
 
 export interface AnalyzeProjectInput {
   title: string
@@ -16,20 +17,75 @@ export interface AnalyzeProjectResult {
   brand_fit_scores: Record<string, number>
 }
 
-/** Client calls Edge Function; API key stays server-side. */
+function isValidResult(value: unknown): value is AnalyzeProjectResult {
+  if (!value || typeof value !== 'object') return false
+  const v = value as Record<string, unknown>
+  return (
+    Array.isArray(v.keywords) &&
+    typeof v.item_summaries === 'object' &&
+    v.item_summaries !== null &&
+    typeof v.overall_summary === 'string' &&
+    typeof v.sentiment === 'object' &&
+    v.sentiment !== null &&
+    typeof v.brand_fit_scores === 'object' &&
+    v.brand_fit_scores !== null
+  )
+}
+
+/**
+ * Calls Edge Function `analyze-project` (Gemini).
+ * Throws when invoke fails or server signals `fallback: true` so caller can use mock.
+ */
 export async function analyzeProject(
   projectId: string,
   data: AnalyzeProjectInput
 ): Promise<AnalyzeProjectResult> {
-  const { supabase } = await import('./supabase')
   const { data: result, error } = await supabase.functions.invoke('analyze-project', {
     body: { projectId, ...data },
   })
+
   if (error) throw error
-  return result as AnalyzeProjectResult
+
+  const payload = result as AnalyzeProjectResult & {
+    error?: string
+    fallback?: boolean
+    cached?: boolean
+  }
+
+  if (payload?.fallback || payload?.error) {
+    throw new Error(payload.error ?? 'analyze-project fallback')
+  }
+
+  if (!isValidResult(payload)) {
+    throw new Error('invalid_response_format')
+  }
+
+  return {
+    keywords: payload.keywords,
+    item_summaries: payload.item_summaries,
+    overall_summary: payload.overall_summary,
+    sentiment: payload.sentiment,
+    brand_fit_scores: payload.brand_fit_scores,
+  }
 }
 
-/** Local fallback when Edge Function / Claude is unavailable (dev/demo). */
+/** Prefer Edge when Supabase is configured; otherwise mock. On Edge failure → mock. */
+export async function analyzeProjectWithFallback(
+  projectId: string,
+  data: AnalyzeProjectInput
+): Promise<{ result: AnalyzeProjectResult; source: 'edge' | 'mock' }> {
+  if (isSupabaseConfigured) {
+    try {
+      const result = await analyzeProject(projectId, data)
+      return { result, source: 'edge' }
+    } catch (err) {
+      console.warn('[analyze] Edge failed, using mock:', err)
+    }
+  }
+  return { result: mockAnalyzeProject(data), source: 'mock' }
+}
+
+/** Local fallback when Edge Function / Gemini is unavailable (dev/demo). */
 export function mockAnalyzeProject(data: AnalyzeProjectInput): AnalyzeProjectResult {
   const wordCounts = new Map<string, number>()
   const allText = [
@@ -52,7 +108,11 @@ export function mockAnalyzeProject(data: AnalyzeProjectInput): AnalyzeProjectRes
     .map(([word, count]) => ({
       word,
       count,
-      sentiment: (count % 3 === 0 ? 'negative' : count % 2 === 0 ? 'positive' : 'neutral') as KeywordResult['sentiment'],
+      sentiment: (count % 3 === 0
+        ? 'negative'
+        : count % 2 === 0
+          ? 'positive'
+          : 'neutral') as KeywordResult['sentiment'],
     }))
 
   const item_summaries: Record<string, string> = {}

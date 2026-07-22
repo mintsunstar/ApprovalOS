@@ -6,7 +6,7 @@ import { ProjectLNB, ProjectHeader } from '@/components/layout/ProjectLayout'
 import { useAuthStore } from '@/stores/authStore'
 import { useProjectStore } from '@/stores/projectStore'
 import { localApi } from '@/lib/localDb'
-import { mockAnalyzeProject } from '@/lib/claude'
+import { analyzeProjectWithFallback } from '@/lib/claude'
 import { toast } from '@/stores/toastStore'
 import type { AIAnalysis } from '@/types'
 
@@ -33,12 +33,24 @@ export function ProjectAnalysis() {
     const comments = localApi.getComments(project.id)
     const allPins = items.flatMap((item) => localApi.getPins(item.id))
     if (comments.length === 0 && allPins.length === 0) {
-      toast.error("분석할 데이터가 없습니다")
+      toast.error('분석할 데이터가 없습니다')
       return
     }
+
+    // 60s debounce (local ai_analyses.created_at) — avoid accidental re-calls
+    const existing = localApi.getAnalysis(project.id)
+    if (existing) {
+      const age = Date.now() - new Date(existing.created_at).getTime()
+      if (age >= 0 && age < 60_000) {
+        setAnalysis(existing)
+        toast.success('최근 분석 결과를 표시합니다 (60초 이내 재사용)')
+        return
+      }
+    }
+
     setLoading(true)
     try {
-      const result = mockAnalyzeProject({
+      const { result, source } = await analyzeProjectWithFallback(project.id, {
         title: project.title,
         items: items.map((i) => ({ id: i.id, title: i.title, keywords: i.keywords })),
         comments: comments.map((c) => ({ content: c.content, item_ids: c.item_ids })),
@@ -54,9 +66,11 @@ export function ProjectAnalysis() {
       })
       const saved = localApi.saveAnalysis({ project_id: project.id, ...result })
       setAnalysis(saved)
-      toast.success("AI 분석이 완료되었습니다")
+      toast.success(
+        source === 'edge' ? 'AI 분석이 완료되었습니다' : 'AI 분석이 완료되었습니다 (로컬)'
+      )
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "분석 실패")
+      toast.error(err instanceof Error ? err.message : '분석 실패')
     } finally {
       setLoading(false)
     }
